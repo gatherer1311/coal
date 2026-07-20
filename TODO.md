@@ -27,8 +27,16 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done (move the decided outcome 
   atomic constructs; symmetric Markdown/Org) → `SPEC.md` §7.1. **Inline rendering scope** settled:
   images, tables, and task checkboxes render inline; math, Mermaid, embeds (deferred-linking-blocked),
   fenced code, and PDF/slides stay literal → `SPEC.md` §7.2.
-- [ ] **Graph / visual rendering library** (e.g. PixiJS) — blocked on scoping a graph view; the
-  library choice is deferred until a graph view is actually on the near-term roadmap.
+- [ ] **Graph / visual rendering library** — **still deferred**; the block is the graph *view*
+  scope, not the rendering tech (view depends on the deferred linking system and data model). The
+  rendering *direction* is now pre-qualified in [`reference/17`](reference/17-graph-rendering-options.md):
+  a layered `GraphSource` data-port (abstract) → worker-side layout (`d3-force` default, WebCola
+  held as the constraint-layout swap) → swappable renderer, with **hand-rolled Canvas 2D** as the
+  Wayland-safe phase-1 substrate and **PixiJS/WebGL** (or a batteries-included WebGL lib —
+  Sigma.js, Reagraph) reserved as an isolated scale-up swap; commercial/source-available engines
+  (KeyLines/ReGraph, yFiles, Ogma, GoJS, Graphistry, Neo4j NVL) excluded by the §11 permissive-OSS
+  posture. Only the substrate **commit** waits on scale from the graph-view scope (→ *v1 feature
+  surface*, above; node-granularity §13.2 + edge-definition §13.1).
 - [x] **Lightweight Org agenda / TODO view** — **not planned** (settled out of scope; Coal brings
   `.org` files, syntax, and writing style only, not Org application features). → `SPEC.md` §5.
 
