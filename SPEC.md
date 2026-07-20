@@ -161,6 +161,41 @@ One substrate, several front-ends.
 - _(The concrete variable catalogue — the exact names and what each controls — is a build-time
   detail that lands with the first themable surfaces, not a spec-level decision.)_
 
+### 8.2 Plugin API & sandboxing **[DECIDED]**
+
+- **Language.** Plugins are authored in **TypeScript / JavaScript** against the **same typed API
+  the core is written against** (§4, §8). There is no separate embedded plugin language;
+  "core-as-plugins" means one API surface and one language, not a privileged native core with a
+  lesser scripting layer bolted on.
+- **Isolation model: in-process, but without ambient authority.** Plugins execute **in-process** —
+  fast, and powerful enough to build the core itself through the same API. But **ambient Node.js /
+  Electron authority is withheld**: plugin code does *not* receive `require('fs')`, raw
+  `child_process`, the network stack, or Electron internals by default. **The typed Coal API is the
+  sole channel to any host capability.** This is the load-bearing commitment — without it, an
+  in-process plugin could simply reach around any permission model via raw Node, and the manifest
+  below would be documentation rather than a gate.
+- **Capabilities are declared and broker-enforced.** Every plugin ships a **manifest** (TOML, per
+  §9) declaring the capabilities it needs — e.g. filesystem scope, network hosts, note-content
+  access, shell / child-process, clipboard. The API **broker enforces the manifest**: an operation
+  the manifest never declared is not reachable. A plugin that never declared `note-content` or
+  `network` therefore cannot read decrypted notes or phone home — which is what gives the
+  "encrypted at rest / private by default" posture (§10) a handle a plugin cannot silently route
+  around.
+- **Trust tiers.** **First-party / core** plugins are trusted and may be granted capabilities by
+  default — this is how core-as-plugins builds the whole editor through the public API.
+  **Third-party** plugins have their **declared capabilities surfaced to the user at install for
+  consent**; grants are **revocable** and **auditable** afterward.
+- **Honest boundary.** A *granted* capability is genuine access: a plugin the user grants
+  `note-content = "read"` really does see decrypted note text in memory. The controls are therefore
+  **least-privilege declaration + explicit consent + revocation + an auditable grant record** — not
+  a claim that arbitrary plugin code is fully contained. The value of the model is that the
+  *default* is **no ambient authority** and every sensitive reach is **declared and consented** — a
+  real improvement over all-or-nothing in-process trust, without the ecosystem friction and the
+  core-as-plugins conflict of a hard RPC/interpreter sandbox.
+- **Reconciliation with §8 ("identical public API").** The API surface core and third-party plugins
+  call is **identical**; what differs across trust tiers is **which capabilities are granted**, not
+  the API itself. Core-as-plugins holds at the API level; the capability broker is orthogonal to it.
+
 ---
 
 ## 9. Configuration model **[DECIDED]**
@@ -261,6 +296,7 @@ outcome.** Open sub-questions live in `TODO.md`.
 | 2026-07-20 | Interaction: keyboard-first core (Emacs keys); mouse-first where it wins; not keyboard-only | Emacs muscle memory for the editing loop; pragmatic mouse use for things like the graph. |
 | 2026-07-20 | View modes: Live Preview + Source only; no Reading/render mode (for now) | Keeps scope tight; render-only features (math, diagrams, PDF, slides) fall out of near-term scope. |
 | 2026-07-20 | Extensibility: one command substrate; keys + `M-x` are front-ends; core-as-plugins; first-class plugin *and* theme systems | Native Emacs feel and a real plugin/theme ecosystem are the same system, not two. |
+| 2026-07-20 | Plugin API & sandboxing: TS/JS on the core's own typed API; in-process but ambient Node/Electron authority withheld (typed API is the sole capability channel); capabilities declared in a manifest and enforced by the broker; first-party trusted, third-party consented + revocable | Keeps core-as-plugins and a low-friction ecosystem while giving encryption-at-rest / private-by-default a real gate; avoids both all-or-nothing in-process trust and a heavy RPC sandbox. |
 | 2026-07-20 | Configuration: everything in plain-text, version-controlled files; GUI reads/writes text only | Declarative, reproducible, portable machine-to-machine. |
 | 2026-07-20 | Git version control is first-class | Free off-site sync (vs paid-sync models) and full history. |
 | 2026-07-20 | Notes encrypted at rest (transparent unlock/re-lock); mechanism deferred | Private notes must not be exposed by syncing or a lost device; the scheme is too consequential for a snap decision. |
