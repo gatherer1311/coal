@@ -17,7 +17,10 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done (move the decided outcome 
 - [x] **Theming mechanism specifics** — **CSS custom properties**; theme = manifest +
   variable-setting stylesheets, installed via the plugin path. → `SPEC.md` §8.1. (Concrete variable
   catalogue lands with the first themable surfaces.)
-- [ ] **Plugin API shape & sandboxing** — language, capability surface, isolation model.
+- [x] **Plugin API shape & sandboxing** — **TypeScript/JS on the core's own typed API; in-process
+  but with ambient Node/Electron authority withheld (the typed API is the sole capability channel);
+  a declared, broker-enforced capability manifest; first-party trusted, third-party consented &
+  revocable.** → `SPEC.md` §8.2.
 - [ ] **v1 feature surface** — which Obsidian-like surfaces ship first (backlinks panel, tags, search, daily notes, graph, …).
 - [ ] **Live-preview specifics** — inline-markup reveal/hide behavior; and which rich elements (math, Mermaid, embeds) render *inline in Live Preview* vs stay literal. (With Reading mode out of scope, these become per-feature scope calls.)
 - [ ] **Graph / visual rendering library** (e.g. PixiJS) — blocked on scoping a graph view; the
