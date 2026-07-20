@@ -11,14 +11,19 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done (move the decided outcome 
 
 ## Open decisions (settle before the affected area is built)
 
-- [ ] **Implementation language** — ratify TypeScript (near-certain given Electron + CodeMirror 6).
-- [ ] **Config file format(s)** — TOML / YAML / a Lisp-y DSL / Org / … — for config, keybindings, and themes.
-- [ ] **Theming mechanism specifics** — working assumption is CSS-variable-based; confirm structure and the theme-package format.
+- [x] **Implementation language** — **TypeScript.** → `SPEC.md` §4.
+- [x] **Config file format(s)** — **TOML as the standard/default**, but a single format is a
+  default, not a requirement; best-suited format per job (e.g. JSON) is allowed. → `SPEC.md` §9.
+- [x] **Theming mechanism specifics** — **CSS custom properties**; theme = manifest +
+  variable-setting stylesheets, installed via the plugin path. → `SPEC.md` §8.1. (Concrete variable
+  catalogue lands with the first themable surfaces.)
 - [ ] **Plugin API shape & sandboxing** — language, capability surface, isolation model.
 - [ ] **v1 feature surface** — which Obsidian-like surfaces ship first (backlinks panel, tags, search, daily notes, graph, …).
 - [ ] **Live-preview specifics** — inline-markup reveal/hide behavior; and which rich elements (math, Mermaid, embeds) render *inline in Live Preview* vs stay literal. (With Reading mode out of scope, these become per-feature scope calls.)
-- [ ] **Graph / visual rendering library** (e.g. PixiJS) — only if/when a graph view is in scope.
-- [ ] **Lightweight Org agenda / TODO view** — out of the Org *application* scope; possibly a later native or plugin feature.
+- [ ] **Graph / visual rendering library** (e.g. PixiJS) — blocked on scoping a graph view; the
+  library choice is deferred until a graph view is actually on the near-term roadmap.
+- [x] **Lightweight Org agenda / TODO view** — **not planned** (settled out of scope; Coal brings
+  `.org` files, syntax, and writing style only, not Org application features). → `SPEC.md` §5.
 
 ## Deferred design work (intentionally postponed — each gets its own design session)
 

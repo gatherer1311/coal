@@ -88,9 +88,13 @@ Non-negotiables. Every downstream decision must be consistent with them.
 
 - **Shell:** Electron.
 - **Editor core:** CodeMirror 6.
+- **Implementation language:** TypeScript. Both decided stack components — Electron and
+  CodeMirror 6 — are authored in and ship first-class type definitions for TypeScript, so it is
+  the language that carries type-checking end-to-end across the shell, the editor core, and the
+  extension API without an interop seam. Given "core-as-plugins" (§8), the same typed API surface
+  the core is written against is the one plugin and theme authors consume.
 
-_(Implementation language, graph/visual-rendering library, and similar specifics are tracked in
-`TODO.md` until ratified.)_
+_(Graph/visual-rendering library and similar specifics are tracked in `TODO.md` until ratified.)_
 
 ---
 
@@ -101,8 +105,9 @@ _(Implementation language, graph/visual-rendering library, and similar specifics
   headings, TODO keywords, links, tables, inline markup, properties/drawers — with live-preview
   authoring parity alongside Markdown.
 - **Out of scope:** the Org *application suite* — agenda, Babel code execution, table spreadsheet
-  formulas, and export backends. (A possible lightweight agenda/TODO view later is tracked in
-  `TODO.md`.)
+  formulas, and export backends. This is a firm scope boundary: Coal brings over `.org` **files,
+  syntax, and writing style**, not Org's application features. A lightweight agenda/TODO view is
+  **not planned** (it was previously an open "maybe later"; now settled as out of scope).
 
 ---
 
@@ -139,8 +144,22 @@ One substrate, several front-ends.
   what the core does because it registers commands / views / themes through the identical public
   API.
 - **First-class plugin system** and **first-class theme system**, from the start — neither is
-  deferred. Themes install through the same path as plugins. (Theming-mechanism specifics are
-  tracked in `TODO.md`.)
+  deferred. Themes install through the same path as plugins.
+
+### 8.1 Theming mechanism **[DECIDED]**
+
+- **Themes are expressed as CSS custom properties (CSS variables).** The shell is web technology
+  (§3–4), so the styling substrate is CSS; a theme is a set of variable definitions the whole UI
+  reads from, not a fork of component styles. This is what lets the core and third-party themes
+  share one styling surface, consistent with "core-as-plugins."
+- **Theme-package format:** a theme is a directory (installable through the plugin path) containing
+  a **manifest** (name, author, version, and whether it targets light, dark, or both) plus one or
+  more **stylesheets that set the theme variables**. No executable code is required to define a
+  theme.
+- **Light/dark:** because Coal follows the system light/dark preference (§3), the variable set is
+  defined for both schemes; a theme may supply values for one or both.
+- _(The concrete variable catalogue — the exact names and what each controls — is a build-time
+  detail that lands with the first themable surfaces, not a spec-level decision.)_
 
 ---
 
@@ -152,7 +171,15 @@ One substrate, several front-ends.
   only**. There is no separate authoritative settings database the text merely mirrors.
 - **Goals:** declarative configuration, reproducibility, and hassle-free transfer of a full editor
   setup from machine to machine (drop the files in, done).
-- **Config file format(s):** tracked in `TODO.md`.
+- **Standard config format: TOML — but not mandatory.** TOML is the default, human-authored format
+  for editor configuration, keybindings, and theme manifests. It is chosen because it round-trips
+  cleanly through a GUI settings pane (the §9 rule that the GUI reads/writes text with no shadow
+  store rules out an *evaluated* config language), it is low-ambiguity and declarative, and it
+  avoids YAML's whitespace and implicit-typing sharp edges. **A single format is a default, not a
+  requirement:** where another format is genuinely better suited for the job (e.g. JSON for
+  machine-generated or interchange data), Coal uses it deliberately rather than forcing everything
+  into TOML. The invariant is §9 itself — whatever the format, it stays plain-text and
+  version-controllable — not any one file type.
 
 ---
 
@@ -226,6 +253,10 @@ outcome.** Open sub-questions live in `TODO.md`.
 | 2026-07-20 | Fresh rewrite; `reference/` is research/priors only, not a blueprint | Owner dissatisfied with prior implementation; wants a design reached from first principles. Convergent, not derived. |
 | 2026-07-20 | Platform: Linux-first, GNOME-at-home, RPM; deep desktop integration in scope | Linux must feel native and deliberate, not an afterthought. |
 | 2026-07-20 | Stack: Electron + CodeMirror 6 | Closest to the intended Obsidian-like stack; largest ecosystem; fastest path to parity. |
+| 2026-07-20 | Implementation language: TypeScript | Both decided stack components are TS-native; end-to-end type-checking across shell, editor core, and the plugin API with no interop seam. |
+| 2026-07-20 | Theming: CSS custom properties; theme = manifest + variable-setting stylesheets, installed via the plugin path; no executable code required | Web-tech shell means CSS is the styling substrate; one variable surface shared by core and third-party themes (core-as-plugins). |
+| 2026-07-20 | Config format: TOML is the standard/default (config, keybindings, theme manifests); a single format is a default, not a requirement — best-suited format per job (e.g. JSON) is allowed | TOML round-trips through a GUI pane (§9), is declarative and low-ambiguity, avoids YAML footguns; the real invariant is §9 (plain-text, version-controllable), not one file type. |
+| 2026-07-20 | Org: bring over `.org` files, syntax, and writing style only; lightweight agenda/TODO view is not planned | Org depth is document-format, not the Org application; owner is not interested in Org application features beyond files and syntax. |
 | 2026-07-20 | Formats: Markdown + Org, both first-class; Org = document-format depth only | Full Org authoring without re-implementing the Org application suite. |
 | 2026-07-20 | Interaction: keyboard-first core (Emacs keys); mouse-first where it wins; not keyboard-only | Emacs muscle memory for the editing loop; pragmatic mouse use for things like the graph. |
 | 2026-07-20 | View modes: Live Preview + Source only; no Reading/render mode (for now) | Keeps scope tight; render-only features (math, diagrams, PDF, slides) fall out of near-term scope. |
