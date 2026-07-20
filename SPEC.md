@@ -32,7 +32,8 @@ justified by "the reference says so."
 Coal is a keyboard-first, Linux-native editor for people who live in plain-text notes and want
 the extensibility and muscle-memory of Emacs without leaving a modern, GNOME-at-home GUI. It
 edits Markdown and Org as first-class document formats, treats the user's files (and the
-editor's own configuration) as the single source of truth, and is extended through one coherent
+editor's own configuration) as the single source of truth, version-controls and syncs them via
+Git, keeps private notes encrypted at rest, and is extended through one coherent
 command/plugin/theme substrate.
 
 ---
@@ -47,14 +48,18 @@ These are the non-negotiables. Every downstream decision must be consistent with
 2. **Plain text is the source of truth — for notes *and* configuration.** Everything the user
    creates or configures lives in human-readable, version-controllable text files. The GUI is a
    front-end onto those files, never a hidden database that the files merely shadow.
-3. **Keyboard-first.** The editor, the minibuffer, and constantly-used quick-access features are
+3. **Git-native, and private by default.** Git version control is first-class — it gives free
+   off-site sync and full history (deliberately avoiding a paid-sync model). Because syncing
+   means notes live on remotes, notes are **encrypted at rest** so that syncing to a remote — or
+   losing the device — never exposes them.
+4. **Keyboard-first.** The editor, the minibuffer, and constantly-used quick-access features are
    driven from the keyboard using Emacs keybindings. Mouse interaction is first-class where it
    genuinely wins (e.g. the visual graph) and available-in-addition where useful — but the core
    editing loop never *requires* the mouse.
-4. **One extension substrate.** There is a single command/extension system. The native Emacs
+5. **One extension substrate.** There is a single command/extension system. The native Emacs
    layer, the plugin system, and the theme system are all first-class citizens built on it — not
    separate worlds.
-5. **Convergent, not derived.** See §0.
+6. **Convergent, not derived.** See §0.
 
 ---
 
@@ -94,7 +99,7 @@ These are the non-negotiables. Every downstream decision must be consistent with
   authoring parity alongside Markdown.
 - **Out of scope (for now):** the Org *application suite* — agenda, Babel code execution, table
   spreadsheet formulas, and export backends. (Whether a lightweight agenda-style view is wanted
-  later is an open question — see §11.)
+  later is an open question — see §13.)
 
 ---
 
@@ -134,11 +139,56 @@ One substrate, several front-ends.
   only**. There is no separate authoritative settings database that the text merely mirrors.
 - **Goals this serves:** declarative configuration, reproducibility, and hassle-free transfer of
   a full editor setup from machine to machine (drop the files in, done).
-- **Config file format(s):** **[OPEN]** — see §11.
+- **Config file format(s):** **[OPEN]** — see §13.
 
 ---
 
-## 9. Documentation model **[DECIDED]**
+## 9. Sync, version control & privacy
+
+### 9.1 Git version control **[DECIDED]**
+
+- Git is a **first-class** part of Coal, not an optional integration.
+- It provides **free off-site sync** (a deliberate advantage over paid-sync models) and complete,
+  browsable **history/versioning** of the user's notes.
+
+### 9.2 Encryption at rest **[DECIDED — as a requirement]**
+
+- **Notes / user content are encrypted at rest.** Because notes are synced to remotes and people
+  keep extremely private material in them, a private repo is not enough: the stored bytes must be
+  ciphertext so that neither the remote host nor a lost/stolen device exposes the content.
+- **Transparent to the user.** The authoring format stays plain `.md` / `.org`; inside Coal
+  (unlocked) the user sees and edits plain text. Coal decrypts for use and **re-locks when the
+  app is closed**.
+- **Scope:** this requirement covers user notes/content. Configuration (§8) is intentionally
+  plaintext-versioned so it stays shareable and declarative. (Whether any config also needs
+  encryption is a detail for §9.3.)
+
+### 9.3 Encryption mechanism **[DEFERRED]**
+
+The exact scheme is **undecided** and must not be implemented until ratified. It is as
+consequential as the linking system and is entangled with both the Git diff/merge strategy and
+the (deferred) data model, so it gets its own design session.
+
+Recorded context so the deferral is informed (these are considerations to resolve, **not**
+decisions):
+
+- **SOPS + age was the owner's initial reference point, not a ratified choice.** SOPS targets
+  *structured config*, not prose; `age` encrypts *whole files* non-deterministically. The
+  requirement stands; the mechanism will likely take a different form.
+- **Two threat models to choose between (they drive the mechanism):** (a) *host confidentiality*
+  — the remote can't read the notes; (b) *local at-rest* — a stolen device with Coal closed
+  can't read them either. The "re-lock on close" intent points at (b).
+- **The unavoidable tradeoff:** once stored bytes are ciphertext, Git diffs/merges operate on
+  ciphertext. Readable diffs are recoverable *locally* for the key-holder (e.g. a decrypt
+  filter), but line-level 3-way merge across devices is limited — acceptable for single-user
+  multi-device sync, and the real cost to weigh.
+- **Open sub-questions:** key management and unlock UX at start; exactly what "re-lock on close"
+  guarantees; whether encryption is app-managed (decrypt-to-memory) vs a Git-filter approach vs
+  encrypted-remote-only.
+
+---
+
+## 10. Documentation model **[DECIDED]**
 
 - Documentation is **first-class and written as-we-go**: a feature is not "done" without its
   docs.
@@ -150,7 +200,7 @@ One substrate, several front-ends.
 
 ---
 
-## 10. Linking & index system **[DEFERRED]**
+## 11. Linking & index system **[DEFERRED]**
 
 The linking model (wiki-style links, backlinks, block references) and the index/derivation
 system that powers them are **deliberately undecided**. They will be settled in a dedicated
@@ -161,30 +211,39 @@ designed-around until this section is ratified.**
 
 ---
 
-## 11. Open questions (tracked)
+## 12. Data model **[DEFERRED]**
 
-Resolve these before the affected areas are built.
+Whether notes behave as **documents** or carry an **outliner / block** model (the Logseq/Roam
+shape), and the on-disk representation beyond "plain-text files," are **deliberately undecided**.
+Deferred alongside §11, with which it is entangled.
 
-1. **Audience & the daily-driver bar.** Who is the primary user, and what is the smallest
-   version that earns full-time daily use? (Defines milestone 1.)
-2. **Data model.** Files-on-disk only, or is there any outliner / block-database ambition?
-   (Principle §2 strongly implies files-on-disk; confirm and record.)
-3. **License & openness posture.** FOSS (which license), source-available, or proprietary?
-   A first-class plugin/theme ecosystem interacts with this choice.
-4. **Configuration file format(s).** e.g. TOML / YAML / JSON / Org / a custom DSL — for config,
-   keybindings, and themes.
-5. **v1 feature surface.** Which Obsidian-like surfaces are in the first release (graph,
-   backlinks panel, tags, search, daily notes, canvas, …)?
-6. **Live-preview specifics.** Rendering model for inline markup (hide-off-cursor, split view,
-   both).
-7. **Plugin API shape & sandboxing.** Language, capabilities, and isolation model for plugins.
-8. **Lightweight Org agenda/TODO view?** Out of the Org *application* scope, but possibly wanted
-   as a native or plugin feature later.
-9. **Linking & index system** — see §10 (deferred, tracked here for visibility).
+**No data-model decisions are recorded here, and none are to be implemented or designed-around
+until this section is ratified.**
 
 ---
 
-## 12. Decision log
+## 13. Open questions (tracked)
+
+Resolve these before the affected areas are built.
+
+1. **License & openness posture.** FOSS (which license), source-available, or proprietary?
+   A first-class plugin/theme ecosystem interacts with this choice.
+2. **Configuration file format(s).** e.g. TOML / YAML / JSON / Org / a custom DSL — for config,
+   keybindings, and themes.
+3. **v1 feature surface.** Which Obsidian-like surfaces are in the first release (graph,
+   backlinks panel, tags, search, daily notes, canvas, …)?
+4. **Live-preview specifics.** Rendering model for inline markup (hide-off-cursor, split view,
+   both).
+5. **Plugin API shape & sandboxing.** Language, capabilities, and isolation model for plugins.
+6. **Lightweight Org agenda/TODO view?** Out of the Org *application* scope, but possibly wanted
+   as a native or plugin feature later.
+7. **Encryption mechanism** — see §9.3 (deferred; tracked here for visibility).
+8. **Linking & index system** — see §11 (deferred; tracked here for visibility).
+9. **Data model (document vs block)** — see §12 (deferred; tracked here for visibility).
+
+---
+
+## 14. Decision log
 
 | Date       | Decision | Rationale |
 |------------|----------|-----------|
@@ -195,5 +254,8 @@ Resolve these before the affected areas are built.
 | 2026-07-20 | Interaction: keyboard-first core (Emacs keys); mouse-first where it wins; not keyboard-only | Emacs muscle memory for the editing loop; pragmatic mouse use for things like the graph. |
 | 2026-07-20 | Extensibility: one command substrate; keys + `M-x` are front-ends; core-as-plugins; first-class plugin *and* theme systems | Native Emacs feel and a real plugin/theme ecosystem are the same system, not two. |
 | 2026-07-20 | Configuration: everything in plain-text, version-controlled files; GUI reads/writes text only | Declarative, reproducible, portable machine-to-machine. |
-| 2026-07-20 | Documentation: first-class, as-we-go, split `docs/user` / `docs/dev` | Each audience gets only what it needs; docs land with features. |
+| 2026-07-20 | Git version control is first-class | Free off-site sync (vs paid-sync models) and full history. |
+| 2026-07-20 | Notes encrypted at rest (transparent unlock/re-lock); mechanism deferred | Private notes must not be exposed by syncing to a remote or losing a device; the exact scheme is too consequential for a snap decision. |
+| 2026-07-20 | Audience: owner-first, dogfooded from day one; public release later; adoption gated on feature maturity + data security | Design and validate against real daily use; security is a prerequisite for the owner's own switch-over. |
+| 2026-07-20 | Data model (document vs block): deferred, no decisions recorded | Foundational and entangled with linking; own session later. |
 | 2026-07-20 | Linking & index system: deferred, no decisions recorded | Too consequential for a snap decision; own session later. |
