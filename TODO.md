@@ -19,7 +19,11 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done (move the decided outcome 
   catalogue lands with the first themable surfaces.)
 - [ ] **Plugin API shape & sandboxing** — language, capability surface, isolation model.
 - [ ] **v1 feature surface** — which Obsidian-like surfaces ship first (backlinks panel, tags, search, daily notes, graph, …).
-- [ ] **Live-preview specifics** — inline-markup reveal/hide behavior; and which rich elements (math, Mermaid, embeds) render *inline in Live Preview* vs stay literal. (With Reading mode out of scope, these become per-feature scope calls.)
+- [x] **Live-preview specifics** — **reveal/hide behavior** settled (configurable granularity,
+  whole-line default; selection always reveals; instant with optional delay; byte-safe display;
+  atomic constructs; symmetric Markdown/Org) → `SPEC.md` §7.1. **Inline rendering scope** settled:
+  images, tables, and task checkboxes render inline; math, Mermaid, embeds (deferred-linking-blocked),
+  fenced code, and PDF/slides stay literal → `SPEC.md` §7.2.
 - [ ] **Graph / visual rendering library** (e.g. PixiJS) — blocked on scoping a graph view; the
   library choice is deferred until a graph view is actually on the near-term roadmap.
 - [x] **Lightweight Org agenda / TODO view** — **not planned** (settled out of scope; Coal brings

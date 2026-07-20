@@ -128,8 +128,80 @@ _(Graph/visual-rendering library and similar specifics are tracked in `TODO.md` 
 - **There is no separate Reading / render-only mode** (for now).
 - Consequence: render-only features that would belong to a reading mode — e.g. Mermaid diagrams,
   MathJax typesetting, PDF viewing, slide/presentation rendering — are **out of near-term scope**.
-  (Whether specific rich elements render *inline within Live Preview* is a per-feature question in
-  `TODO.md`.)
+  Which specific rich elements render *inline within Live Preview* versus stay literal is settled in
+  §7.2.
+- **Source mode is a decoration toggle, not a second renderer.** Live Preview and Source are the
+  same CodeMirror 6 instance; Source is Live Preview with all hide/replace decorations suppressed,
+  so switching is instant and preserves scroll and selection.
+
+### 7.1 Live Preview — reveal/hide behavior **[DECIDED]**
+
+Live Preview prettifies inline markup (hiding the syntax markers and styling the rendered form) and
+reveals the raw source again near the caret so it stays directly editable. The specifics:
+
+- **Reveal granularity is configurable, default whole-line.** Two modes, selected via editor
+  configuration (§9):
+  - `line` (**default**) — the entire line the caret is on shows its raw markup; every other line
+    stays prettified. Stable, no per-keystroke flicker, and every marker on the line being edited is
+    visible at once.
+  - `element` — only the single construct the caret sits inside reveals (the org-appear model).
+    Hides more noise and reads cleaner, at the cost of markers popping in and out during
+    character-by-character motion.
+- **Selection always reveals raw markup**, in both granularity modes: any selection spanning a
+  construct forces that construct's markers to show, so cut/copy yields true source. This is a
+  correctness requirement of byte-for-byte round-tripping (§9), not a preference.
+- **Instant by default, with an optional reveal delay.** Reveal is immediate; an optional idle-delay
+  setting (default `0`, i.e. off) can debounce the reveal to reduce flicker while scanning through
+  markup. This is a UX safety valve, not a behavioral default.
+- **Reveal/hide is pure display and never mutates file bytes.** It is implemented entirely as
+  CodeMirror 6 view decorations (`Decoration.mark`/`Decoration.replace`/widgets); the stored text is
+  untouched. The sole Live-Preview affordance that *writes* is an explicit user edit — toggling a
+  rendered task checkbox (§7.2) flips `[ ]`↔`[x]`, exactly the byte change the user would type.
+- **Rendered constructs are atomic for caret navigation.** Arrow keys and Backspace treat a rendered
+  unit (a link, an image, a checkbox) as a single glyph, so the caret cannot get stranded inside
+  hidden URL/target text and a single delete removes the whole construct.
+- **Markdown and Org get the same treatment.** Per §5 (live-preview authoring parity), the reveal/
+  hide model applies symmetrically to both syntaxes — Org emphasis (`*bold*`, `/italic/`,
+  `=verbatim=`, `~code~`, `+strike+`, `_underline_`), Org heading stars, Org link syntax
+  `[[target][desc]]`, TODO keywords, and property/drawer lines are prettified and revealed on the
+  same rules as their Markdown counterparts.
+
+### 7.2 Live Preview — inline rendering scope **[DECIDED]**
+
+With no Reading mode (§7), what renders inline in Live Preview is decided per element. The governing
+rule: **an element renders inline only when its authoring source stays inline and editable** — the
+markup is a thin wrapper you still edit as text (typographic markup, tables, task text) or a passive
+display whose *source markup* you edit (images). Anything that would need a typesetting/diagram
+render engine, or is entangled with a deferred system, **stays literal** — shown as its source text
+in Live Preview, consistent with "no render mode."
+
+**Renders inline** (prettified; raw source reveals near the caret per §7.1):
+
+- **Typographic markup** — emphasis (bold/italic/strikethrough/underline), inline code/verbatim,
+  headings, lists, blockquotes, and plain inline links (`[text](url)` — display the text, hide the
+  URL). This *is* Live Preview and is not itself an open question.
+- **Images** (`![alt](path)`) — the image renders inline; editing targets the markup, not pixels.
+- **Tables** — Markdown/Org tables render as a formatted grid. This decision covers *display only*;
+  a dedicated table-editing feature is separate and not implied here, so editing falls back to the
+  raw row source on the active line/element.
+- **Task checkboxes** (`- [ ]` / `- [x]`) — render as toggleable checkboxes with the label text
+  still editable; toggling writes the `[ ]`↔`[x]` byte change (also reachable as a keyboard
+  command).
+
+**Stays literal** (shown as source text; no inline render):
+
+- **Math** (`$…$`, `$$…$$`, Org `\(…\)` / LaTeX fragments) — render-only typesetting, out of
+  near-term scope (§7).
+- **Mermaid / diagrams** — render-only, out of near-term scope (§7).
+- **Embeds / transclusions** (`![[…]]`) — blocked on the deferred linking & index system (§13.1) and
+  data model (§13.2); not decided here.
+- **Fenced code blocks** — shown as literal source with syntax highlighting only; never executed or
+  rendered (no Babel execution §5, no render mode §7). Highlighting is styling over literal text.
+- Other render-only artifacts (PDF, slides, raw HTML block rendering) — out of near-term scope (§7).
+
+> **Note on wikilinks.** The reveal/hide *mechanism* above is ready for link-like constructs, but the
+> concrete rendering of `[[wikilinks]]` (and their atomic widget/UUID handling) is part of the
+> deferred linking system (§13.1) and lands with that design, not here.
 
 ---
 
@@ -260,6 +332,8 @@ outcome.** Open sub-questions live in `TODO.md`.
 | 2026-07-20 | Formats: Markdown + Org, both first-class; Org = document-format depth only | Full Org authoring without re-implementing the Org application suite. |
 | 2026-07-20 | Interaction: keyboard-first core (Emacs keys); mouse-first where it wins; not keyboard-only | Emacs muscle memory for the editing loop; pragmatic mouse use for things like the graph. |
 | 2026-07-20 | View modes: Live Preview + Source only; no Reading/render mode (for now) | Keeps scope tight; render-only features (math, diagrams, PDF, slides) fall out of near-term scope. |
+| 2026-07-20 | Live Preview reveal/hide: configurable granularity (whole-line default, per-element optional); selection always reveals raw markup; instant with optional delay; pure display, byte-safe; atomic rendered constructs; symmetric Markdown/Org | Whole-line matches Obsidian and avoids caret-motion flicker; per-element (org-appear model) reads cleaner for those who want it; selection-reveal and byte-safety protect round-trip fidelity (§9). |
+| 2026-07-20 | Live Preview inline rendering: images, tables, and task checkboxes render inline; math, Mermaid, embeds, fenced-code, PDF/slides stay literal | Render inline only what stays inline-editable as source (typographic, images, tables, task text); anything needing a render engine (math/Mermaid) or entangled with deferred linking (embeds) stays literal — consistent with "no Reading mode" (§7). |
 | 2026-07-20 | Extensibility: one command substrate; keys + `M-x` are front-ends; core-as-plugins; first-class plugin *and* theme systems | Native Emacs feel and a real plugin/theme ecosystem are the same system, not two. |
 | 2026-07-20 | Configuration: everything in plain-text, version-controlled files; GUI reads/writes text only | Declarative, reproducible, portable machine-to-machine. |
 | 2026-07-20 | Git version control is first-class | Free off-site sync (vs paid-sync models) and full history. |
