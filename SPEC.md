@@ -556,9 +556,7 @@ and nothing structural depends on the block layer.
 
 Decided in principle here; each needs a concrete ratification before code:
 
-- **The frozen normalizer** — a single, byte-identical normalization spec (case, whitespace, Unicode
-  NFC/NFD, smart quotes, markdown-stripping) shared by the suggester's minter and the resolver's
-  matcher. Must be frozen *before* any resolver code.
+- **The frozen normalizer** — **[DECIDED] — ratified in §14.12.**
 - **Confidence thresholds** for the ambiguous band (the margin cut-points that decide silent-resolve
   vs. surfaced-confirm).
 - **The exact sidecar JSON schema and id format.**
@@ -567,6 +565,60 @@ Decided in principle here; each needs a concrete ratification before code:
   v1-surface decision; the linking system it was blocked on is now decided.
 - **Git posture detail** — the baseline works Overlay-only; Git *strengthens* re-anchoring and
   rename detection but is never required for correctness.
+
+### 14.12 The frozen normalizer **[DECIDED]**
+
+The single, byte-identical text-normalization function shared by the suggester's **minter** (which
+records a block's fingerprint at link-creation) and the resolver's **matcher** (which re-anchors). If
+the two ever normalized one byte differently, links would silently miss — so this is frozen as a
+spec, versioned, and changed only by deliberate migration.
+
+**Role — an identity key, not the durability mechanism.** Durability is the diff-ratchet's job
+(§14.6); the ratchet follows a block through real edits by diff, needing no hash equality. The
+normalizer only produces a clean key for three narrower jobs: exact-match in the silent-resolve band,
+duplicate detection, and cheap "did this block change?" checks. It is therefore deliberately
+**conservative** — it absorbs only *rendering-invisible* noise and preserves everything visible. Both
+failure directions degrade to a *confirm*, never a mis-point: over-normalizing collides two blocks
+(→ disqualified from the silent band → confirm); under-normalizing lets noise change the hash (→ the
+ratchet still follows the block by position).
+
+**Coal is a noise-free producer.** Coal's editor emits **only literal keyboard text** — no
+smart-quote / dash / ellipsis autoformat — and displays everything **monospaced, ligatures off**.
+This governs what Coal *produces and shows*; it **never** rewrites imported or foreign-edited bytes
+(§14.1 is inviolable — a genuine `—` or `"…"` in an imported note stays exactly those bytes). The
+consequence: typographic / Unicode drift can enter only via **import or foreign editors**, which is
+the sole scope the folds below still serve.
+
+The function is two stages.
+
+**Stage A — payload extraction (kind-aware).** Using the block's `kindTag`, strip structural markers
+that are not content, so marker churn does not change identity:
+
+- *paragraph* — text as-is;
+- *list item* — strip the leading bullet / number marker (`- `, `* `, `1. `);
+- *blockquote* — strip the leading `> ` on each line;
+- *code fence* — drop the fence delimiters and info-string, keep the body.
+
+**Stage B — canonicalization** (applied to the extracted string), frozen as:
+
+| Step | Rule |
+|---|---|
+| Unicode form | **NFC** (never NFKC — no ligature / compatibility folding) |
+| Line endings | CRLF / CR → **LF** |
+| Whitespace | trim ends; collapse every interior run (incl. inside code blocks) → a single `U+0020` |
+| Typographic fold | a **fixed, closed table** only: `‘’` → `'`, `“”` → `"`, `–` / `—` → `-`, `…` → `...`, nbsp & other Unicode spaces → space |
+| Case | **locale-invariant case-fold** (lowercase) |
+| Markup | **preserved** — emphasis, link, and other inline markup are *not* stripped (keeps the normalizer lexical and parser-free) |
+
+**Output & versioning.** `normHash` = SHA-256 over the UTF-8 of the canonical string (stored
+truncated); the same canonical string is the input to `simhash` tokenization (§14.3). A
+**`normVersion`** is stamped in the Overlay: "frozen" means frozen *within a version*, and any future
+change to a rule above is a deliberate, re-hashing migration — never a silent shift.
+
+This choice serves the project's aim directly — **maximum portability, compatibility, and
+efficiency**: it never touches the portable bytes, it tolerates the messiness of other editors and
+imports (compatibility), and an O(1) hash key over a lexical, parser-free transform keeps resolution
+cheap (efficiency).
 
 ---
 
@@ -605,3 +657,4 @@ Decided in principle here; each needs a concrete ratification before code:
 | 2026-07-20 | First-class **Reconciliation Engine** (watcher + dirty-check + off-thread ratchet + startup pass + Git hooks); foreign renames paired by content/id/Git `-M`; runs off the main thread | The maintenance plan needs a guaranteed, robust, non-blocking executor baked in from the start; off-thread avoids the synchronous-resolution freeze/data-loss failure mode. |
 | 2026-07-20 | Overlay storage: **mirrored, lazy, per-file JSON sidecars** under `.coal/` | Churn + merge locality (multi-device sync) and note-folder purity; monolithic / sharded / co-located layouts all rejected. |
 | 2026-07-20 | Dangling links: **current-note** side panel (two groups: Broken / Needs attention) + vault-wide management via a housekeeping settings surface, with `M-x` twins | Low ambient noise in the working view; deliberate full-corpus management on demand; keyboard-first. |
+| 2026-07-21 | Frozen normalizer (§14.12): a versioned, lexical, parser-free function shared by minter + matcher — kind-aware payload extraction, then NFC · LF · whitespace-collapse · a fixed typographic-fold table · locale-invariant case-fold · **markup preserved**; `normHash` = truncated SHA-256, `normVersion` stamped | The normalizer is an identity key, not the durability mechanism (the ratchet is), so it stays conservative — both over- and under-normalizing degrade to a confirm, never a mis-point. Coal emits only literal keyboard text (monospace, no ligatures) so drift enters only via import/foreign editors; the small folds serve exactly that. Serves portability (bytes untouched), compatibility (tolerates other editors), and efficiency (O(1) hash key). |

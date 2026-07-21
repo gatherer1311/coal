@@ -47,9 +47,9 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done (move the decided outcome 
   lazy block registration, Option-1 block links, the Git-backed diff-ratchet, the Reconciliation
   Engine, mirrored per-file sidecars, and the dangling-links surfaces are all ratified in `SPEC.md` §14.
 - Remaining **downstream ratifications** (decided in principle; each needs a concrete spec before code):
-  - [ ] **Frozen normalizer** — one byte-identical normalization spec (case / whitespace / Unicode
-    NFC-NFD / smart quotes / markdown-stripping) shared by the suggester minter and the resolver
-    matcher. Freeze **before** any resolver code. → `SPEC.md` §14.11.
+  - [x] **Frozen normalizer** — **DECIDED → `SPEC.md` §14.12.** Kind-aware payload extraction, then
+    NFC · LF · whitespace-collapse · a fixed typographic-fold table · locale-invariant case-fold ·
+    markup preserved; `normHash` = truncated SHA-256; `normVersion` stamped for versioned freezing.
   - [ ] **Confidence thresholds** for the ambiguous band (silent-resolve vs. surfaced-confirm cut-points).
   - [ ] **Sidecar JSON schema & id format** — the concrete on-disk shape of a node record and a sidecar.
   - [ ] **Backlinks panel UX** — Linked / Unlinked-mentions grouping and interactions.
