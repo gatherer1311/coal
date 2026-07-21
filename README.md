@@ -1,17 +1,19 @@
 # Coal
 
-A Linux-native, keyboard-first Markdown/Org editor — the *hands of Emacs* (central minibuffer,
-Emacs keybindings, deep hackability) and the *head of Obsidian* (plain-text notes, links,
-backlinks, live preview).
+A Linux-native, keyboard-first Markdown/Org editor — the *hands of Emacs* (central minibuffer, deep
+hackability, and your choice of **Emacs or Vim** keymaps) and the *head of Obsidian* (plain-text
+notes, links, backlinks, live preview).
 
-> **Note:** this README is an intentional placeholder. A full, user-facing README will be written
-> once the program is fully designed (tracked in [`TODO.md`](TODO.md)). Coal is in the planning
-> stage.
+> **Status: public, in active design — pre-build.** This README is an intentional placeholder; a
+> full, user-facing one will be written once the program is designed (tracked in [`TODO.md`](TODO.md)).
+> Design happens in the open, from first principles — read the spec and join the discussion.
 
 - **Design & ratified decisions:** [`SPEC.md`](SPEC.md)
 - **Open items & pending work:** [`TODO.md`](TODO.md)
+- **Official plugins:** [`PLUGINS.md`](PLUGINS.md)
 - **Documentation:** [`docs/`](docs/) — split into [`docs/user/`](docs/user/) and [`docs/dev/`](docs/dev/)
+- **Contributing:** [`CONTRIBUTING.md`](CONTRIBUTING.md) · **Security:** [`SECURITY.md`](SECURITY.md) · **Conduct:** [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
 
 ## License
 
-Apache License 2.0 — see [`LICENSE`](LICENSE).
+Apache License 2.0 — see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).

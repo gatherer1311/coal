@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Design & feature ideas / questions
+    url: https://github.com/gatherer1311/coal/discussions
+    about: >-
+      Coal is design-first. Propose and discuss design or features in Discussions —
+      adopted ideas are ratified into SPEC.md, not filed as issues. See CONTRIBUTING.md.
+  - name: Report a security vulnerability
+    url: https://github.com/gatherer1311/coal/security/advisories/new
+    about: >-
+      Report security issues privately. Please do NOT open a public issue. See SECURITY.md.
