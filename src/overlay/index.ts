@@ -7,4 +7,5 @@ export * from "./normalize";
 export * from "./id";
 export * from "./canonicalJson";
 export * from "./simhash";
+export * from "./neighbors";
 export * from "./resolve";
