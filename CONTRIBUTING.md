@@ -47,6 +47,20 @@ what keeps the project coherent.
 - By contributing, you agree your contributions are licensed under the project's **Apache-2.0**
   license (see [`LICENSE`](LICENSE) / [`NOTICE`](NOTICE)).
 
+## Working on code
+
+`main` is protected: **PR-only, CI-gated, no direct pushes, no force-push.** This is enforced on
+GitHub and mirrored by local git hooks, so work always flows through a branch and a PR.
+
+- Run `npm install` once per clone — it configures git hooks and safe defaults for you
+  (`pull.ff=only`, `fetch.prune`, `rerere`). Nothing global is changed.
+- Your **PR title becomes the commit on `main`** (squash-merge), so write it as a clean one-liner.
+- To refresh a branch, **rebase** on `main` — don't merge `main` into it.
+- Merged branches auto-delete; run `npm run git:cleanup` to tidy local leftovers.
+
+The rationale is documented in
+[`docs/superpowers/specs/2026-07-21-git-guardrails-design.md`](docs/superpowers/specs/2026-07-21-git-guardrails-design.md).
+
 ## Security
 
 Please **do not** file security vulnerabilities as public issues — see [`SECURITY.md`](SECURITY.md)

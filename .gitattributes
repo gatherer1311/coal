@@ -1,0 +1,10 @@
+# Normalize line endings to LF on commit. Prevents CRLF/LF churn and the
+# spurious "the whole file changed" conflicts that come from mixed endings.
+* text=auto eol=lf
+
+# Shell hooks and scripts must stay LF regardless of platform.
+*.sh text eol=lf
+.githooks/* text eol=lf
+
+# Generated / vendored: keep out of language stats and collapse diff noise.
+package-lock.json linguist-generated=true
