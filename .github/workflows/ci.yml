@@ -12,17 +12,11 @@ on:
       - ".prettierrc.json"
       - ".prettierignore"
       - ".github/workflows/ci.yml"
+  # No path filter on pull_request: CI is a *required* check, and a required
+  # check that never runs (because a PR didn't touch the filtered paths) leaves
+  # the PR stuck forever. So CI runs on every PR to main.
   pull_request:
     branches: ["main"]
-    paths:
-      - "src/**"
-      - "package.json"
-      - "package-lock.json"
-      - "tsconfig.json"
-      - "vitest.config.ts"
-      - ".prettierrc.json"
-      - ".prettierignore"
-      - ".github/workflows/ci.yml"
 
 permissions:
   contents: read

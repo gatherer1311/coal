@@ -1,0 +1,42 @@
+name: PR title
+
+# Squash-merge uses the PR title as the commit subject on main, so the title is
+# effectively a commit message. This is a light hygiene gate (not Conventional
+# Commits): it just rejects empty / junk / over-long titles. Required on main.
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  title:
+    name: PR title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Title becomes the squash commit — keep it meaningful
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -eu
+          trimmed="$(printf '%s' "${TITLE:-}" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+          fail() { echo "::error::$1"; echo "PR title check failed: $1" >&2; exit 1; }
+
+          [ -n "$trimmed" ] || fail "PR title is empty."
+          len=${#trimmed}
+          [ "$len" -ge 8 ]  || fail "PR title too short (<8 chars): '$trimmed'"
+          [ "$len" -le 72 ] || fail "PR title too long (>72 chars): '$trimmed'"
+
+          lower="$(printf '%s' "$trimmed" | tr '[:upper:]' '[:lower:]')"
+          case "$lower" in
+            update|updates|fix|fixes|changes|stuff|misc|.|test)
+              fail "PR title '$trimmed' is not descriptive — it becomes the commit on main." ;;
+          esac
+          case "$lower" in
+            wip*|*" wip"|*"[wip]"*|*"(wip)"*)
+              fail "Remove the WIP marker from the title before merge." ;;
+          esac
+
+          echo "PR title OK: $trimmed"

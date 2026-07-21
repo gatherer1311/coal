@@ -1,0 +1,40 @@
+#!/usr/bin/env sh
+# Reject obviously-junk commit subjects. Fast, local, and bypassable with
+# `git commit --no-verify` (the server never trusts this; it re-checks).
+#
+# Because PRs are squash-merged, the PR *title* is what lands on main. These
+# checks just keep a branch's own history readable while it's under review.
+
+msg_file="$1"
+subject="$(sed -n '1p' "$msg_file")"
+
+# Allow fixup!/squash! commits — they get collapsed on rebase/merge.
+case "$subject" in
+  fixup!*|squash!*) exit 0 ;;
+esac
+
+trimmed="$(printf '%s' "$subject" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+
+if [ -z "$trimmed" ]; then
+  echo "commit-msg: empty subject line." >&2
+  exit 1
+fi
+
+len=${#trimmed}
+if [ "$len" -lt 3 ]; then
+  echo "commit-msg: subject too short (<3 chars): '$trimmed'" >&2
+  exit 1
+fi
+if [ "$len" -gt 72 ]; then
+  echo "commit-msg: subject too long (>72 chars) — tighten it: '$trimmed'" >&2
+  exit 1
+fi
+
+lower="$(printf '%s' "$trimmed" | tr '[:upper:]' '[:lower:]')"
+case "$lower" in
+  wip|oops|temp|tmp|asdf|stuff|fix|fixes|update|updates|changes|.|..|test|foo|bar)
+    echo "commit-msg: '$trimmed' is not a meaningful subject — describe the change." >&2
+    exit 1 ;;
+esac
+
+exit 0

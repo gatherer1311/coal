@@ -1,0 +1,38 @@
+#!/usr/bin/env sh
+# Local backstop that mirrors the server rules, for fast feedback:
+#   - refuse to push straight to main (main is PR-only; also blocks force-push)
+#   - run the same checks CI runs, so you don't push red
+# Bypass with `git push --no-verify` (GitHub re-enforces main protection anyway).
+# Set SKIP_HOOKS=1 to skip all Coal hooks for a command.
+
+[ "${SKIP_HOOKS:-}" = "1" ] && exit 0
+
+protected="refs/heads/main"
+
+# stdin: <local_ref> <local_sha> <remote_ref> <remote_sha>
+has_update=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -z "$remote_ref" ] && continue
+  if [ "$remote_ref" = "$protected" ]; then
+    echo "pre-push: direct pushes to main are not allowed — open a PR." >&2
+    echo "          (main is PR-only + CI-gated; GitHub enforces this too.)" >&2
+    exit 1
+  fi
+  # An all-zero local sha means this ref is being deleted, not updated.
+  case "$local_sha" in *[!0]*) has_update=1 ;; esac
+done
+
+# Nothing being added (e.g. a `--delete` push): no need to run the checks.
+[ "$has_update" = "0" ] && exit 0
+
+# Mirror CI locally when deps are present.
+if [ -x node_modules/.bin/tsc ]; then
+  echo "pre-push: running typecheck / tests / format (matches CI)..." >&2
+  if ! npm run --silent typecheck; then echo "pre-push: typecheck failed." >&2; exit 1; fi
+  if ! npm run --silent test; then echo "pre-push: tests failed." >&2; exit 1; fi
+  if ! npm run --silent format:check; then echo "pre-push: format check failed — run 'npm run format'." >&2; exit 1; fi
+else
+  echo "pre-push: deps not installed — skipping CI mirror (the server will run it)." >&2
+fi
+
+exit 0
