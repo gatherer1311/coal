@@ -4,8 +4,8 @@
 > **Last updated:** 2026-07-21
 >
 > Coal is a Linux-native text editor with the *hands of Emacs* (central minibuffer,
-> Emacs keybindings, deep hackability) and the *head of Obsidian* (plain-text notes,
-> links, backlinks, live preview), speaking both **Org** and **Markdown**.
+> deep hackability, and your choice of **Emacs or Vim** keymaps) and the *head of Obsidian*
+> (plain-text notes, links, backlinks, live preview), speaking both **Org** and **Markdown**.
 
 ---
 
@@ -27,10 +27,10 @@ so."
 ## 1. Vision
 
 Coal is a keyboard-first, Linux-native editor for people who live in plain-text notes and want
-the extensibility and muscle-memory of Emacs without leaving a modern, GNOME-at-home GUI. It
+the extensibility and muscle-memory of Emacs or Vim without leaving a modern, GNOME-at-home GUI. It
 edits Markdown and Org as first-class document formats, treats the user's files (and the editor's
-own configuration) as the single source of truth, version-controls and syncs them via Git, keeps
-private notes encrypted at rest, and is extended through one coherent command/plugin/theme
+own configuration) as the single source of truth, version-controls and syncs them via Git, offers
+built-in, opt-in encryption at rest, and is extended through one coherent command/plugin/theme
 substrate.
 
 ---
@@ -45,14 +45,17 @@ Non-negotiables. Every downstream decision must be consistent with them.
 2. **Plain text is the source of truth — for notes *and* configuration.** Everything the user
    creates or configures lives in human-readable, version-controllable text files. The GUI is a
    front-end onto those files, never a hidden database the files merely shadow.
-3. **Git-native, and private by default.** Git version control is first-class — free off-site
-   sync and full history (deliberately avoiding a paid-sync model). Because syncing means notes
-   live on remotes, notes are **encrypted at rest** so that syncing — or losing the device —
-   never exposes them.
+3. **Git-native, with privacy built in.** Git version control is first-class — free off-site
+   sync and full history (deliberately avoiding a paid-sync model). Because syncing puts notes on
+   remotes, Coal ships **first-class, built-in encryption at rest** the user enables per vault, so
+   syncing — or losing the device — need never expose them. It is **opt-in** (off by default, §10.2):
+   privacy is one toggle away, and plaintext workflows — a shared or company repo — are equally
+   first-class.
 4. **Keyboard-first.** The editor, the minibuffer, and constantly-used quick-access features are
-   driven from the keyboard using Emacs keybindings. Mouse interaction is first-class where it
-   genuinely wins (e.g. the visual graph) and available-in-addition where useful — but the core
-   editing loop never *requires* the mouse.
+   driven from the keyboard, with **first-class Emacs *and* Vim keymaps** (chosen at first run and
+   fully switchable, §6). Mouse interaction is first-class where it genuinely wins (e.g. the visual
+   graph) and available-in-addition where useful — but the core editing loop never *requires* the
+   mouse.
 5. **One extension substrate.** A single command/extension system. The native Emacs layer, the
    plugin system, and the theme system are all first-class citizens built on it — not separate
    worlds.
@@ -136,8 +139,29 @@ _(Graph/visual-rendering library and similar specifics are tracked in `TODO.md` 
 
 ## 6. Interaction model **[DECIDED]**
 
-- **Keyboard-first, Emacs keybindings** for the editor, the minibuffer, and constantly-used
-  quick-access features.
+- **Keyboard-first**, for the editor, the minibuffer, and constantly-used quick-access features.
+- **Two first-class keymaps out of the box: Emacs *and* Vim.** Both ship, both are fully supported,
+  and the user **chooses at first run** (there is no baked-in default); the choice is a declarative
+  editor setting (§9) that can be switched at any time.
+  - **Delivery — official plugins over a core seam.** The **command substrate** (§8), the
+    **minibuffer**, and a **keymap / input-mode seam** live in the core; the Emacs and Vim keymaps
+    are **bundled official plugins** built on that seam (tracked in `PLUGINS.md`). This is a *safe*,
+    input-only surface (it touches no files, keys, or network), so it sits firmly on the
+    community-open side of the §8.2 capability guardrail — later community keymaps are a natural,
+    safe extension. The seam is justified now (not speculatively) because it has **two real
+    consumers from day one**.
+  - **Full feature parity.** Every Coal command is reachable in **both** keymaps; each binding is
+    modeled on the **closest counterpart in its respective editor** (e.g. save is Emacs `C-x C-s`
+    and Vim `:w`, both resolving to the one registry command). Where a concept is native to only one
+    paradigm (Vim text objects; Emacs marks/registers), each keymap expresses the shared underlying
+    command in its own idiom. Parity is a maintained invariant, mirroring the §5 "both formats
+    first-class" rule applied to input.
+  - **Vim modes are fully supported**, via the same command substrate: normal / insert / visual (and
+    the rest), operators, and text objects.
+  - **The minibuffer is unified — one element, two personalities.** In Emacs mode it is `M-x` /
+    `M-:`; in Vim mode the *same* surface renders the **`:` ex command line**, **`/` search**, and
+    the **mode indicator** (`-- NORMAL --`, `-- INSERT --`, `-- VISUAL --`). Ex commands (`:w`,
+    `:q`, `:wq`) resolve to the same registry commands as their Emacs counterparts.
 - **Not keyboard-*only*.** Where an interaction is genuinely better with a mouse (the visual graph
   is the canonical example), that is a first-class mouse experience.
 - **Both, where useful.** Features may expose both keyboard and mouse paths; the constraint is only
@@ -244,7 +268,8 @@ One substrate, several front-ends.
   first-party features built on the same public API, bundled and trusted (§8.2 trust tiers),
   analogous to Obsidian's "core plugins." The project deliberately leans into this: as much as is
   reasonable lives as an official plugin over a small core, honoring Coal's Emacs-derived extensible
-  substrate. *Which* features are core versus official plugins is an open split tracked in `TODO.md`.
+  substrate. The **registry of official plugins** — committed and proposed — is [`PLUGINS.md`](PLUGINS.md);
+  *which* remaining features are core versus official plugins is an open split tracked in `TODO.md`.
 
 ### 8.1 Theming mechanism **[DECIDED]**
 
@@ -283,13 +308,24 @@ One substrate, several front-ends.
   §9) declaring the capabilities it needs — e.g. filesystem scope, network hosts, note-content
   access, shell / child-process, clipboard. The API **broker enforces the manifest**: an operation
   the manifest never declared is not reachable. A plugin that never declared `note-content` or
-  `network` therefore cannot read decrypted notes or phone home — which is what gives the
-  "encrypted at rest / private by default" posture (§10) a handle a plugin cannot silently route
+  `network` therefore cannot read decrypted notes or phone home — which is what gives Coal's
+  opt-in encryption-at-rest / privacy posture (§10) a handle a plugin cannot silently route
   around.
 - **Trust tiers.** **First-party / core** plugins are trusted and may be granted capabilities by
   default — this is how core-as-plugins builds the whole editor through the public API.
   **Third-party** plugins have their **declared capabilities surfaced to the user at install for
   consent**; grants are **revocable** and **auditable** afterward.
+- **The most dangerous capabilities are first-party-only.** A class of capabilities is so powerful
+  that user consent cannot make it safe — controlling the physical on-disk representation of files
+  (a storage codec), custody of encryption keys, gating application startup, or any ambient
+  Node/Electron host authority. These are **reserved to first-party code the project ships and
+  audits; they are never offered to third-party plugins, even with consent.** The reasoning: for a
+  privacy-respecting tool, a guarantee that hinges on every user correctly judging a "this plugin
+  will control how all your files are stored / hold your keys" dialog is no guarantee at all. This
+  is why encryption stays **core** rather than a plugin (§10.2) — it needs exactly these powers.
+  Should a genuine second consumer of such a seam ever appear, the seam is designed then, against
+  real cases, under this rule. **Safe, bounded surfaces stay community-open** — notably the
+  keymap / input-mode seam (§6), which touches no files, keys, or network.
 - **Honest boundary.** A *granted* capability is genuine access: a plugin the user grants
   `note-content = "read"` really does see decrypted note text in memory. The controls are therefore
   **least-privilege declaration + explicit consent + revocation + an auditable grant record** — not
@@ -345,21 +381,32 @@ One substrate, several front-ends.
 - Git is a **first-class** part of Coal, not an optional integration. It provides **free off-site
   sync** (a deliberate advantage over paid-sync models) and complete, browsable **history**.
 
-### 10.2 Encryption at rest **[DECIDED — as a requirement]**
+### 10.2 Encryption at rest **[DECIDED]**
 
-- **Notes / user content are encrypted at rest.** A private repo is not enough: the stored bytes
-  must be ciphertext so neither the remote host nor a lost/stolen device exposes the content.
-- **Transparent to the user.** The authoring format stays plain `.md` / `.org`; inside Coal
-  (unlocked) the user sees and edits plain text. Coal decrypts for use and **re-locks when the app
-  is closed**.
+- **A first-class, built-in, *opt-in* core feature — off by default.** When a vault has encryption
+  enabled, notes / user content are stored as ciphertext, so neither the remote host nor a
+  lost/stolen device exposes the content; a private repo alone is not relied on. It is **not** a
+  universal requirement: **plaintext vaults are equally first-class**, so a developer can push
+  readable files to a shared or company repo, and users who don't want the overhead simply leave it
+  off. *(This is a deliberate softening of the earlier "encrypted-at-rest as a hard requirement";
+  see the §2 principle-#3 amendment.)*
+- **Enabled per vault**, chosen at vault creation and toggleable afterward; the choice is
+  declarative, living with the rest of the vault's configuration (§8.3 / §9).
+- **Core, not a plugin.** Encryption needs the most privileged powers in the app — control of the
+  on-disk representation, key custody, and startup gating — exactly the first-party-only capabilities
+  of §8.2, so it lives in the **core** rather than the plugin surface.
+- **Transparent when on.** The authoring format stays plain `.md` / `.org`; inside Coal (unlocked)
+  the user sees and edits plain text. Coal decrypts for use and **re-locks when the app is closed**.
 - **Scope:** user notes/content. Configuration (§9) stays plaintext-versioned so it remains
-  shareable and declarative.
-- **Mechanism:** specified in §10.3 — `age`/`typage`, app-managed decrypt-to-memory (ciphertext at
-  rest *and* on the remote from one scheme), single passphrase-wrapped vault key.
+  shareable and declarative, whether or not a vault is encrypted.
+- **Mechanism (when enabled):** specified in §10.3 — `age`/`typage`, app-managed decrypt-to-memory
+  (ciphertext at rest *and* on the remote from one scheme), single passphrase-wrapped vault key; the
+  forgotten-passphrase backstop is §10.4.
 
 ### 10.3 Encryption mechanism **[DECIDED]**
 
-The concrete scheme realizing §10.2. **One mechanism covers both surfaces** — the off-site/remote
+The concrete scheme realizing §10.2 **for a vault that has encryption enabled** (an opt-in, per-vault
+choice, §10.2). **One mechanism covers both surfaces** — the off-site/remote
 copy and the local disk are ciphertext by the same means — so "encrypted before it leaves the
 machine" and "encrypted at rest on the device" are one system, not two. Grounded (priors only, §0) by
 the primary-source survey in [`reference/19`](reference/19-encryption-in-git.md).
@@ -451,9 +498,10 @@ defenses with an encrypted Overlay — are tracked in `TODO.md`.)_
 
 The §10.3 key model makes the passphrase the **sole** gate on the vault identity, and §10.2 puts real
 local data behind it — so a forgotten passphrase is otherwise **permanent, total loss of every note.**
-Coal's backstop is a **recovery key**, generated **by default** at vault creation but a **default, not
-a requirement** (the §9 house rule) — the opt-out is real and mandatory (below). No escrow, no server;
-the §10.3 zero-knowledge posture is preserved.
+Coal's backstop is a **recovery key**, generated **by default when a vault enables encryption** (at
+creation, or when turning it on later) but a **default, not a requirement** (the §9 house rule) — the
+opt-out is real and mandatory (below). No escrow, no server; the §10.3 zero-knowledge posture is
+preserved.
 
 **Mechanism — a second `age` stanza.** `age` is natively multi-recipient, so the wrapped
 vault-identity file carries a **second unwrapping stanza** beside the scrypt-passphrase one: a random
@@ -536,12 +584,13 @@ in — never injected into them.
   a note is a *link the user authored* — a wikilink, Markdown link, or Org link. Those are portable
   content. The line is exact: **references (source-side) live in the file; identity anchors
   (target-side) live in the Overlay.**
-- **Files are portable — but ciphertext at rest; the deep graph is Coal-only, by design.** Because
-  notes are encrypted at rest (§10.3), the on-disk folder is **not** plain Markdown any editor opens;
-  portability is instead an explicit guarantee — the files are standard **`age`** (decryptable by any
-  `age` client + your key), and Coal offers one-command **Export → plaintext** `.md`/`.org` plus a
-  lossless encrypted **Coal bundle** (with mirror imports). Decrypted, the content is clean
-  Markdown/Org whose human-readable links resolve however another editor chooses. Coal's
+- **Files are portable; the deep graph is Coal-only, by design.** In an **unencrypted** vault (the
+  default, §10.2) the on-disk folder is plain `.md`/`.org` any editor opens directly. When a vault
+  has **encryption enabled**, the on-disk folder is instead ciphertext — **not** plain Markdown any
+  editor opens — so portability is an explicit guarantee: the files are standard **`age`**
+  (decryptable by any `age` client + your key), and Coal offers one-command **Export → plaintext**
+  `.md`/`.org` plus a lossless encrypted **Coal bundle** (with mirror imports). Decrypted, the content
+  is clean Markdown/Org whose human-readable links resolve however another editor chooses. Coal's
   *block-precise* graph is an enrichment layer only Coal sees. Portability of the content and of link
   *meaning* is total (via decrypt/export); portability of block-precise *navigation* is deliberately
   Coal-only.
@@ -1120,17 +1169,20 @@ A committed per-note baseline blob is therefore **rejected**: with no repo there
 either (identical fingerprint+confirm fallback); with a repo it merely duplicates `git cat-file`; and
 it would double working-tree bytes and commit verbatim user content (§10.2).
 
-**Encryption split** (updated by §10.3). The committed Overlay is now **inside** the encryption
-boundary: because its `href` (authored link text), `normHash`, `simhash`, and `neighbors` are all
-content-derived, §10.3 encrypts the Overlay sidecars at rest and on the remote alongside notes, which
-**closes** the residual coarse-similarity leak this section had flagged for the §10.3 threat model.
-Consequence for the merge model above: with the Overlay stored as ciphertext, Git's default line merge
-of the plaintext JSON no longer applies, so the `coal-overlay` structural driver becomes **required**
+**Encryption split** (updated by §10.3, and conditional on §10.2's opt-in). **When a vault has
+encryption enabled**, the committed Overlay is **inside** the encryption boundary: because its `href`
+(authored link text), `normHash`, `simhash`, and `neighbors` are all content-derived, §10.3 encrypts
+the Overlay sidecars at rest and on the remote alongside notes, which **closes** the residual
+coarse-similarity leak this section had flagged for the §10.3 threat model. Consequence for the merge
+model above: with the Overlay stored as ciphertext, Git's default line merge of the plaintext JSON no
+longer applies, so **for an encrypted vault** the `coal-overlay` structural driver becomes **required**
 (gaining a decrypt → 3-way merge → re-encrypt wrapper, shared with §10.3's note merge driver), with
 **recompute-from-bytes-on-open** as the always-correct floor; the id-sorted frozen serialization
-(§13.13) still governs the *plaintext* the driver merges. The Tier-2 baseline cache stays git-ignored
-and purged on lock. (Reconciling every §13.15 merge defense with the encrypted Overlay in full detail
-is tracked in `TODO.md`.) Configuration (§9) stays plaintext.
+(§13.13) still governs the *plaintext* the driver merges. In an **unencrypted** vault the Overlay
+sidecars are plaintext JSON and merge as before (the structural driver still preferred, but Git's line
+merge is a valid floor). The Tier-2 baseline cache stays git-ignored and purged on lock. (Reconciling
+every §13.15 merge defense with the encrypted Overlay in full detail is tracked in `TODO.md`.)
+Configuration (§9) stays plaintext.
 
 **Every §13.6/§13.7 mechanism runs Overlay-only.** Dirty-check, in-Coal transactional anchoring, the
 diff-ratchet across a foreign edit, the relocated/altered/removed outcomes, foreign-rename pairing by
@@ -1249,3 +1301,5 @@ wrong resolve, never a silent mis-point, never data loss.
 | 2026-07-21 | Plugin management & enablement (§8.3): installed plugins + enabled/disabled state live in a declarative `.coal/config/PLUGINS.<ext>` file (TOML per §9), managed both by editing the file and from the Settings UI (which reads/writes the file, no shadow store §9); explicit `enabled`/`disabled` values; fixes `.coal/config/` as the config home | Applies §9 (plain-text source of truth, GUI-as-front-end) to plugins; explicit enablement lets a plugin be installed-but-disabled; third-party enable still routes through §8.2 consent. |
 | 2026-07-21 | Data model settled (§13.10): a note is a **document with addressable sub-blocks, not an outliner**; core carries no outliner model; a fuller outliner ships as an **official plugin** layered over the plain-text document (never altering the core model or on-disk format §13.1) | Resolves the open data-model question in `TODO.md`: keep the core minimal and portable (§13.1), and deliver outlining as opt-in first-party extensibility (§8) rather than a core commitment; the plugin's own design remains open. |
 | 2026-07-21 | Recovery-key backstop (§10.4): a **recovery key generated by default** at vault creation — a default, not a requirement, with a **real, reversible opt-out** (skip at creation + full removability in Settings). Mechanism = a **second `age` stanza** (random X25519 recovery recipient) on the wrapped vault identity, so either the passphrase or the recovery key unwraps it; Coal stores only the public recipient and **never the recovery secret** (not the repo, not the GNOME Secret Service). One-time **Emergency Kit** (standard `AGE-SECRET-KEY-…`, CLI-recoverable); recovery **forces a new passphrase** and offers a fresh key; rotate/remove are one small re-wrap. v1 = one key; N-recipients + FIDO2/WebAuthn are extension points | §10.3 makes the passphrase the sole gate and §10.2 puts real local data behind it, so a forgotten passphrase is otherwise permanent total loss — too sharp an edge to leave as the silent default for a notes app. `age`'s native multi-recipient support delivers the escape hatch with no bespoke crypto and no escrow, keeping zero-knowledge intact; default-on protects the common case while removability honors the §9 "default, not requirement" rule and contains the second-full-power-credential trade-off. |
+| 2026-07-21 | Encryption posture (§10.2 / §2 principle #3): encryption at rest walked back from a hard **requirement** to a **first-class, built-in, opt-in core feature — off by default**, enabled per vault; **plaintext vaults are equally first-class** (a developer pushes readable files to a company repo; hassle-averse users skip it). Founding principle #3 softened from "private by default" → "privacy built in, opt-in"; §1 vision updated. The §10.3/§10.4 **mechanism is unchanged**, and encryption **stays core** (not a plugin). Adopts a standing guardrail (§8.2): the most dangerous capabilities — storage-codec / physical-representation, key custody, startup gating, ambient host authority — are **first-party-only, never third-party-consentable**; a pluggable storage seam is deferred until a genuine second consumer exists. | Optionality (not plugin-ness) was the real goal, and it is met without exposing the app's most dangerous seams to community plugins or building a general storage seam speculatively for one consumer; keeping encryption core changes the just-ratified mechanism the least. The guardrail keeps Coal's private-when-enabled posture from ever hinging on users judging un-judgeable "control all your files / hold your keys" consent dialogs. |
+| 2026-07-21 | Interaction model (§6 / §2 principle #4): **Emacs *and* Vim keymaps both ship out of the box**, chosen at **first run** (no baked-in default), declaratively switchable (§9), with **full feature parity** (every command bound in both, each modeled on the closest counterpart in its editor) and **fully-supported Vim modes**. Delivered as **bundled official plugins** over a core command-substrate + minibuffer + **input-mode seam**; the **minibuffer is unified** — Emacs `M-x`/`M-:`, Vim `:` ex line + `/` search + mode indicator. Founding principle #4 widened from "Emacs keybindings" → "Emacs and Vim keymaps"; §1 vision widened to "Emacs or Vim." Registered in `PLUGINS.md`. | Serves the widest editor audience (the "VSCode/Obsidian/Emacs/Vim in one" aim) on Coal's extensible substrate. The input-mode seam is *safe* (touches no files, keys, or network) and has **two real consumers from day one**, so — unlike the storage seam — it sits on the community-open side of the §8.2 guardrail and is justified now, not speculatively. |

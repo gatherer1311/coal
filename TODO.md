@@ -22,12 +22,16 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done (move the decided outcome 
   a declared, broker-enforced capability manifest; first-party trusted, third-party consented &
   revocable.** → `SPEC.md` §8.2.
 - [ ] **v1 feature surface** — which Obsidian-like surfaces ship first (backlinks panel, tags, search, daily notes, graph, …).
-- [ ] **Core vs official-plugin split** — decide which features are *core Coal* and which ship as
+- [~] **Core vs official-plugin split** — decide which features are *core Coal* and which ship as
   **official (first-party) plugins** (Obsidian's "core plugins" model, introduced in `SPEC.md` §8).
   The owner wants to lean hard into the plugin/extensible substrate (the Emacs origin, §8): as much
-  as is reasonable lives as an official plugin over a minimal core. Early inputs already leaning
-  *plugin* — the outliner (§13.10), the full code-editor mode, the Zettelkasten plugin, and
-  spell/grammar check (all in *Feature backlog*, below). The concrete split is decided here.
+  as is reasonable lives as an official plugin over a minimal core. The **registry** of decided
+  official plugins is [`PLUGINS.md`](PLUGINS.md). Decided so far:
+  - **Core:** **encryption** — needs first-party-only privileged capabilities (§8.2), so it stays
+    core, opt-in (§10.2), *not* a plugin.
+  - **Official plugins:** the **Emacs** and **Vim** keymaps (§6), and the **outliner** (§13.10).
+  - Still leaning *plugin* and pending design: the full code-editor mode, the Zettelkasten plugin,
+    and spell/grammar check (all in *Feature backlog*, below). The remaining concrete split lands here.
 - [x] **Live-preview specifics** — **reveal/hide behavior** settled (configurable granularity,
   whole-line default; selection always reveals; instant with optional delay; byte-safe display;
   atomic constructs; symmetric Markdown/Org) → `SPEC.md` §7.1. **Inline rendering scope** settled:
@@ -94,6 +98,10 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done (move the decided outcome 
   files regardless (§13.1).
 
 ### Encryption mechanism — **core scheme DECIDED → `SPEC.md` §10.3** (grounded by [`reference/18`](reference/18-obsidian-encryption.md) + [`reference/19`](reference/19-encryption-in-git.md))
+> **Posture update (2026-07-21):** encryption is now a **core, opt-in feature — off by default** (§10.2,
+> amending founding principle §2 #3 from "private by default"); plaintext vaults are equally first-class.
+> It stays **core, not a plugin** (it needs the first-party-only privileged capabilities, §8.2). The
+> **mechanism below is unchanged** — it simply applies to vaults that have encryption enabled.
 - [x] **Threat model** — content encrypted before it leaves the machine **and** local at-rest, both from
   **one** mechanism; metadata (names/structure/sizes/history) leak accepted (mitigable via a private/self-hosted remote). → §10.3.
 - [x] **Primitive / KDF** — `age` (ChaCha20-Poly1305 / X25519) via **`typage`** (in-process TS); vault key
