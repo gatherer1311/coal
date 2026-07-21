@@ -1,0 +1,18 @@
+version: 2
+updates:
+  # Keep the GitHub Actions our workflows depend on up to date.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"
+
+  # npm — dormant until a package.json exists; armed for the app scaffold.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "deps"
