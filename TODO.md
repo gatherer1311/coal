@@ -50,13 +50,25 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done (move the decided outcome 
   - [x] **Frozen normalizer** — **DECIDED → `SPEC.md` §13.11.** Kind-aware payload extraction, then
     NFC · LF · whitespace-collapse · a fixed typographic-fold table · locale-invariant case-fold ·
     markup preserved; `normHash` = truncated SHA-256; `normVersion` stamped for versioned freezing.
-  - [ ] **Confidence thresholds** for the ambiguous band (silent-resolve vs. surfaced-confirm cut-points).
-  - [ ] **Sidecar JSON schema & id format** — the concrete on-disk shape of a node record and a sidecar.
-  - [ ] **Backlinks panel UX** — Linked / Unlinked-mentions grouping and interactions.
+  - [x] **Confidence thresholds** — **DECIDED → `SPEC.md` §13.12.** Silent-resolve is a hard AND-gate
+    (content G1 ∧ corroboration G2 ∧ margin G3) over a content-dominant score; a `0.45` floor is
+    dangling and everything plausible-but-ungated confirms (amber); Path-1/Path-2 split on
+    diff-certainty; all constants stamped as `resolverVersion`.
+  - [x] **Sidecar JSON schema & id format** — **DECIDED → `SPEC.md` §13.13.** Opaque
+    `<tag>_<128-bit CSPRNG Crockford-base32>` ids; per-note committed `.json` registry of ids +
+    durability fingerprints + link intent (**no verbatim note text**); volatile range/path/status and
+    the title/alias/backlink projections are Tier-2 git-ignored; frozen canonical JSON writer.
+  - [x] **Backlinks panel UX** — **DECIDED → `SPEC.md` §13.14.** `coal.backlinks` right-dock leaf +
+    `backlinks-jump` minibuffer twin over one Tier-2 projection; **Linked** (stable-id inversion) /
+    **Unlinked** (frozen-normalizer name scan) groups; promote-to-link is the sole (source-note,
+    zero-identity) mutation.
   - [ ] **Embeds / transclusion** (`![[…]]`) inline-rendering scope — linking is decided (`SPEC.md` §13);
     whether/when embeds render inline (with recursion / depth-cap handling) is an open v1-surface item.
-  - [ ] **Git posture detail** — Overlay-only is authoritative; Git strengthens re-anchoring / rename
-    detection but is never required for correctness (micro-history behaviors to detail).
+  - [x] **Git posture detail** — **DECIDED → `SPEC.md` §13.15.** "Commit the hash, cache the bytes":
+    Overlay-only (Tier 0 + Tier 1) is the total correctness function; Git is a strictly-additive,
+    monotonic strengthener (baseline recovery, deepened history, `-M` rename, Post-Git scoping), never
+    in the correctness path; sidecar merges resolve by id-sorted serialization + a `coal-overlay`
+    structural driver + recompute-on-open.
 
 ### Data model (document vs block)
 - [~] **Partially constrained by `SPEC.md` §13.10:** a note is a *document with addressable
