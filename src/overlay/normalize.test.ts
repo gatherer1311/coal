@@ -47,6 +47,10 @@ describe("extractPayload — Stage A, kind-aware (SPEC 13.11)", () => {
   test("code fence with no info string keeps the body", () => {
     expect(extractPayload("```\nbody\n```", "code-fence")).toBe("body");
   });
+
+  test("table takes the payload as-is (dedicated rule pending, SPEC 13.13)", () => {
+    expect(extractPayload("| a | b |\n| 1 | 2 |", "table")).toBe("| a | b |\n| 1 | 2 |");
+  });
 });
 
 describe("canonicalize — Stage B, frozen (SPEC 13.11)", () => {

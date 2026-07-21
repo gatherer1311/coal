@@ -20,14 +20,13 @@ export const NORM_VERSION = "1";
 /**
  * Block kinds whose structural markers Stage A strips (SPEC 13.11).
  *
- * NOTE — flagged for design reconciliation: SPEC 13.3 / 13.13 name the kindTag
- * set as `paragraph | list-item | table | code`, whereas 13.11's Stage A gives
- * extraction rules for `paragraph | list-item | blockquote | code-fence`. This
- * implements the four kinds 13.11 specifies explicit rules for; the
- * table-vs-blockquote / code-fence-vs-code naming needs to be settled before the
- * kindTag set is final.
+ * The set follows SPEC 13.13 (`paragraph | list-item | blockquote | code-fence |
+ * table`); `table` extraction defaults to the as-is payload pending a dedicated
+ * rule (13.13). NOTE — flagged for design reconciliation: SPEC 13.3 names the set
+ * `paragraph | list-item | table | code` (omitting blockquote, and "code" vs
+ * "code-fence"); the 13.3 naming should be aligned to 13.13.
  */
-export type KindTag = "paragraph" | "list-item" | "blockquote" | "code-fence";
+export type KindTag = "paragraph" | "list-item" | "blockquote" | "code-fence" | "table";
 
 /** A leading list marker: `- `, `* `, `+ `, `1. `, `1) ` (with optional indent). */
 const LIST_MARKER = /^\s*(?:[-*+]|\d+[.)])\s+/;
@@ -43,6 +42,7 @@ function isFence(line: string): boolean {
 export function extractPayload(raw: string, kind: KindTag): string {
   switch (kind) {
     case "paragraph":
+    case "table": // as-is payload pending a dedicated rule (SPEC 13.13)
       return raw;
     case "list-item":
       return raw.replace(LIST_MARKER, "");
