@@ -82,6 +82,9 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done (move the decided outcome 
   *KDF* in Obsidian Sync's E2EE — the actual cipher is AES-256-GCM, and core Obsidian encrypts nothing
   at rest; full breakdown in [`reference/18`](reference/18-obsidian-encryption.md)), Argon2. Pick during design.
 - [ ] **Approach** — app-managed decrypt-to-memory vs a Git clean/smudge filter vs encrypted-remote-only.
+  Full survey of the tooling/architecture space (file-level filter · whole-repo transport ·
+  filesystem-layer, plus the in-process `age`/`typage` path) in
+  [`reference/19`](reference/19-encryption-in-git.md).
 - [ ] **Key management + unlock UX** at start, and exactly what "re-lock on close" guarantees.
 - [ ] **Git diff/merge strategy over ciphertext** — a local decrypt filter (textconv) can restore readable diffs for the key-holder; line-level 3-way merge stays limited (acceptable for single-user multi-device sync).
 
