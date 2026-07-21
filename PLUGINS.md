@@ -37,6 +37,9 @@ Legend: `[x]` committed (decided in `SPEC.md`) · `[ ]` proposed (candidate in `
   launch within the same 24-hour window. Official plugin; naming scheme and window rule open.
 - [ ] **Spell check** (and *maybe* grammar) — editor spell-checking; its core-vs-plugin placement is
   still open.
+- [ ] **Templates** — insert plain-text template files from the vault into new/opened notes, with basic
+  variable substitution (date / title / cursor). Proposed official plugin; its design and core-vs-plugin
+  placement are open (`TODO.md`). Daily notes and Zettelkasten both depend on it.
 
 ---
 
