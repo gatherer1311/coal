@@ -63,7 +63,8 @@ Non-negotiables. Every downstream decision must be consistent with them.
 ## 3. Platform & packaging **[DECIDED]**
 
 - **Primary platform:** Linux, first-class. GNOME is the reference desktop.
-- **Packaging:** RPM (primary target).
+- **Packaging & supported systems:** RPM is the **launch** target; the full supported-system matrix
+  (Linux DEB / Flatpak, macOS, Android) is fixed in §3.1.
 - **Native desktop integration is a feature, not a coat of paint.** Coal deliberately uses
   Electron's Linux/OS-specific customization surface so it feels at home. In scope:
   - XDG Desktop Portals (native GTK file choosers, etc.)
@@ -76,6 +77,27 @@ Non-negotiables. Every downstream decision must be consistent with them.
 - **Boundary of "GNOME integration":** the UI is web technology themed to *look and feel* at home
   in GNOME. It is **not** built from native GTK/libadwaita widgets. "Full GNOME integration" means
   the desktop-integration layer above, not a native toolkit.
+
+### 3.1 Supported systems **[DECIDED — target set; per-platform build work tracked in `TODO.md`]**
+
+Linux is **primary and first-class** (§2); the other targets are **additional** and must never
+compromise the Linux-first experience — Coal is not "a cross-platform app with a Linux build bolted
+on" (§2). The supported set:
+
+| System | Packaging | Timing |
+|---|---|---|
+| **Linux** (primary) | **RPM** | **at launch** |
+| Linux | **DEB** | post-launch |
+| Linux | **Flatpak** | post-launch |
+| **macOS** | native app bundle | post-launch |
+| **Android** | **APK only** (sideloaded; no app-store channel) | post-launch |
+
+- **RPM ships at launch** (§3); DEB, Flatpak, macOS, and Android follow. Only RPM is a launch
+  *commitment* — the rest are committed *targets* without a fixed launch order.
+- **Android is APK-only** — distributed as a sideloadable APK, not through an app store.
+- This section fixes *which* systems are supported; per-platform packaging and porting are build
+  tasks in `TODO.md`. It does **not** dilute §2: Linux stays the platform Coal is designed *for*,
+  and macOS/Android are ports held to the same native-feel bar rather than the reason for the design.
 
 ---
 
@@ -103,6 +125,12 @@ _(Graph/visual-rendering library and similar specifics are tracked in `TODO.md` 
   formulas, and export backends. This is a firm scope boundary: Coal brings over `.org` **files,
   syntax, and writing style**, not Org's application features. A lightweight agenda/TODO view is
   **not planned** (it was previously an open "maybe later"; now settled as out of scope).
+- **Markdown ⇄ Org feature parity (within Coal).** Every Coal feature that touches document content
+  works **symmetrically for Markdown and Org** — live preview (§7.1), linking and block addressing
+  (§13), backlinks (§13.14), and any future content feature treat the two syntaxes at parity. The
+  parity is scoped to *Coal's own feature set*: it is **not** a promise to re-implement Org-application
+  features (agenda, Babel, export — out of scope above) in Markdown, only that whatever Coal does, it
+  does equally for both formats.
 
 ---
 
@@ -212,6 +240,11 @@ One substrate, several front-ends.
   API.
 - **First-class plugin system** and **first-class theme system**, from the start — neither is
   deferred. Themes install through the same path as plugins.
+- **Official (first-party) plugins.** Beyond the minimal core, Coal ships **official plugins** —
+  first-party features built on the same public API, bundled and trusted (§8.2 trust tiers),
+  analogous to Obsidian's "core plugins." The project deliberately leans into this: as much as is
+  reasonable lives as an official plugin over a small core, honoring Coal's Emacs-derived extensible
+  substrate. *Which* features are core versus official plugins is an open split tracked in `TODO.md`.
 
 ### 8.1 Theming mechanism **[DECIDED]**
 
@@ -225,6 +258,11 @@ One substrate, several front-ends.
   theme.
 - **Light/dark:** because Coal follows the system light/dark preference (§3), the variable set is
   defined for both schemes; a theme may supply values for one or both.
+- **Default theme — "Sublime".** Coal ships with a bundled default theme named **Sublime**: a dark
+  scheme built on near-black ("dark black") backgrounds with **sublime-green** accents. It is a
+  normal theme delivered through the theme path above — no privileged status beyond being the
+  shipped default. Its concrete variable values are produced with the pre-build visual design
+  (`TODO.md`).
 - _(The concrete variable catalogue — the exact names and what each controls — is a build-time
   detail that lands with the first themable surfaces, not a spec-level decision.)_
 
@@ -262,6 +300,21 @@ One substrate, several front-ends.
 - **Reconciliation with §8 ("identical public API").** The API surface core and third-party plugins
   call is **identical**; what differs across trust tiers is **which capabilities are granted**, not
   the API itself. Core-as-plugins holds at the API level; the capability broker is orthogonal to it.
+
+### 8.3 Plugin management & enablement **[DECIDED]**
+
+- **Plugins are managed declaratively, like all configuration (§9).** The set of installed plugins
+  and their enabled/disabled state lives in a plain-text, version-controllable config file:
+  **`.coal/config/PLUGINS.<ext>`** (`<ext>` per §9 — TOML by default), portable with the rest of the
+  setup.
+- **Two front-ends onto one file.** Plugins are managed **both** by editing that declarative file
+  directly **and** from within the app's Settings UI; per §9 the Settings UI is a front-end that
+  **reads and writes that text file** — there is no separate authoritative plugin store it shadows.
+- **Enablement is explicit state, not presence.** A plugin entry carries an explicit **`enabled`** /
+  **`disabled`** value, so a plugin can be installed-but-disabled without removing it. Enabling a
+  third-party plugin still routes through the §8.2 capability-consent flow.
+- **Config location.** This fixes **`.coal/config/`** as the home for declarative configuration
+  files, alongside the Overlay / index / cache trees under `.coal/` (§13.8).
 
 ---
 
@@ -619,12 +672,19 @@ links surface in the panels (§13.9).
   into **Linked** and **Unlinked mentions** (the latter matched on note title/alias text, since ids
   are never user-visible). Panel detail is specified in §13.14.
 
-### 13.10 Relationship to the data model
+### 13.10 Relationship to the data model **[DECIDED]**
 
-This design treats a note as a **document with addressable sub-blocks**, not an outliner: blocks are
-addressable units *within* document notes, one canonical node per block, and nothing structural
-depends on the block layer. (Whether notes additionally carry a fuller outliner/block model is
-tracked in `TODO.md`.)
+The data model is settled: a note is a **document with addressable sub-blocks**, **not an outliner**.
+Blocks are addressable units *within* document notes, one canonical node per block, and nothing
+structural depends on the block layer.
+
+- **No core outliner.** Coal's core carries no outliner/block data model; the
+  document-with-sub-blocks model above is the whole of it.
+- **Outliner is an official plugin.** A fuller outliner / block-manipulation experience ships as an
+  **official (first-party) plugin** (§8) layered *over* the plain-text document — never as a change
+  to the core model or the on-disk format (§13.1 — notes stay pure Markdown/Org). The plugin's own
+  design (interaction model, any structure persistence, Markdown/Org parity §5) is tracked in
+  `TODO.md`.
 
 ### 13.11 The frozen normalizer **[DECIDED]**
 
@@ -1137,3 +1197,8 @@ wrong resolve, never a silent mis-point, never data loss.
 | 2026-07-21 | Backlinks panel UX (§13.14): a `coal.backlinks` right-dock leaf (sibling to `coal.dangling`, default-stacked, `auto_show=false`, follow/pin); one Tier-2 projection, two front-ends (panel + `backlinks-jump` minibuffer preview). **Linked** = stable-id sidecar inversion; **Unlinked** = Aho-Corasick scan of the §13.11-normalized {stem, H1, aliases} name set over each note's normalized text (offset-mapped to raw bytes, token-boundary, exact-after-normalization, `normVersion`-stamped). Shared §13.5 block-precision sigils (`· § ◆ ◇` + last-known); the sole mutating action **promote** writes a portable zero-identity wikilink into the *source* note (note-level, confirm-gated, ambiguity → path-qualified); all affordances `backlinks-*` commands with `M-x` twins; `[backlinks]` TOML config | Stand-off identity (§13.1) forces the Linked/Unlinked split — one group Coal knows by id, one it guesses by user-visible name — and dictates the only legal write is an authored reference into the source note; computing at reconcile and reading at panel time keeps it a regenerable Tier-2 projection (§13.2/§13.7); two front-ends onto one registry is §8 applied to a data surface. |
 | 2026-07-21 | Git posture (§13.15): **commit the hash, cache the bytes** — the diff-ratchet baseline is bootstrapped from current bytes at any consistent state (full-file `baseline.hash` committed as the consistent-vs-divergent gate), with the baseline bytes kept as a git-ignored Tier-2 cache (purged on lock, regenerated); re-anchoring, reconciliation, foreign-rename pairing and dangling detection are a total function of Tier 0 + Tier 1, provably Git-free. Git is a strictly-additive layer admitted only under a monotonicity rule (divergent-baseline recovery via `baseline.commit`, large-leap re-anchor via deepened history, committed-rename via `--find-renames=50%`, Post-Git changed-set scoping) raising a verdict only up `dangling<ambiguous<resolved`. Sidecar merges resolve by markerless id-sorted serialization + a `coal-overlay` structural driver + recompute-from-bytes-on-open; only differing link `target.block` intent ever reaches the user; Tier 2 stays git-ignored and regenerated | Honors "plain text is the source of truth" and "Git-native but never required for correctness": a never-committed, repo-less vault resolves identically to a committed one, and verbatim user content stays out of the committed tree (§10.2); Git only ever saves a keystroke or a stat-walk. |
 | 2026-07-21 | Encryption mechanism (§10.3): one scheme for **both** remote and local at-rest — **app-managed decrypt-to-memory** with **`age`/`typage`** (ChaCha20-Poly1305 / X25519, in-process TS, no external binary). Notes are ciphertext `age` files at rest, so Git versions opaque blobs (no clean/smudge filter), re-encrypted only on real change (randomized → no equality leak). **Single vault X25519 identity, passphrase-wrapped** (`age` scrypt-passphrase, clamped) in a Bitwarden-style hierarchy (passphrase→KEK→identity→per-note keys), so device onboarding = clone + passphrase and rotation re-wraps one key. Unlock holds the key in the main process only, **lock = purge** (optional GNOME Secret-Service cache); `textconv` + a decrypt→3-way→re-encrypt merge driver give diffs/merges. **Overlay encrypted too** (closes the §13.15 leak); **config stays plaintext**; portability via standard-`age` + import/export (amends §13.1). Metadata (names/sizes/history) deliberately not hidden. | Delivers §10.2 (content ciphertext on the remote **and** at rest) from one in-process mechanism on vetted primitives — no git-filter, no external tool. The decrypt-to-memory + single passphrase-wrapped vault key mirrors password-manager practice (Bitwarden) and keeps multi-device onboarding to 'clone + passphrase'; `age` keeps the format open (CLI-decryptable) so import/export preserve portability. Metadata leak is accepted (mitigable by a private/self-hosted remote), not solved. Grounded by the reference/19 survey. |
+| 2026-07-21 | Supported systems (§3.1): Linux primary — **RPM at launch**, DEB + Flatpak post-launch; **macOS** post-launch; **Android APK-only** (sideloaded, no store) post-launch; Linux stays first-class, others additive | Broadens reach without diluting Linux-first (§2): only RPM is a launch commitment, macOS/Android are committed targets held to the same native-feel bar; per-platform build work is tracked in `TODO.md`. |
+| 2026-07-21 | Markdown ⇄ Org feature parity within Coal (§5): every Coal content feature works symmetrically for both syntaxes; parity is scoped to Coal's own features, not to re-implementing Org-application features in Markdown | Makes explicit an invariant already implied by §5/§7.1/§13 — both formats are first-class, so Coal's own features never favor one; it is not a promise about the out-of-scope Org-application suite. |
+| 2026-07-21 | Official (first-party) plugins (§8) + default theme **"Sublime"** (§8.1): Coal ships trusted first-party "official plugins" over a minimal core (Obsidian's "core plugins" model), leaning into the extensible substrate; the bundled default theme is **Sublime** — dark-black background with sublime-green accents, delivered through the normal theme path | Embraces Coal's Emacs-derived extensibility (§8) — as much as reasonable lives as official plugins over a small core; the default theme is a concrete visual anchor (values produced with the pre-build visual design). The concrete core-vs-plugin split stays open in `TODO.md`. |
+| 2026-07-21 | Plugin management & enablement (§8.3): installed plugins + enabled/disabled state live in a declarative `.coal/config/PLUGINS.<ext>` file (TOML per §9), managed both by editing the file and from the Settings UI (which reads/writes the file, no shadow store §9); explicit `enabled`/`disabled` values; fixes `.coal/config/` as the config home | Applies §9 (plain-text source of truth, GUI-as-front-end) to plugins; explicit enablement lets a plugin be installed-but-disabled; third-party enable still routes through §8.2 consent. |
+| 2026-07-21 | Data model settled (§13.10): a note is a **document with addressable sub-blocks, not an outliner**; core carries no outliner model; a fuller outliner ships as an **official plugin** layered over the plain-text document (never altering the core model or on-disk format §13.1) | Resolves the open data-model question in `TODO.md`: keep the core minimal and portable (§13.1), and deliver outlining as opt-in first-party extensibility (§8) rather than a core commitment; the plugin's own design remains open. |
