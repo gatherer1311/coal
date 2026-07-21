@@ -106,8 +106,12 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done (move the decided outcome 
 - [x] **Git diff/merge over ciphertext** — `textconv` for readable diffs + a decrypt→3-way→re-encrypt merge
   driver (transcrypt as blueprint); single-user multi-device target. → §10.3.
 - Remaining **detail items** (design decided; each needs a concrete spec before code):
-  - [ ] **Recovery-key backstop** — with local at-rest back in, a forgotten passphrase = total loss; decide
-    whether/how to mint a random recovery key (age-keygen-style) as an escape hatch. **(Important.)**
+  - [x] **Recovery-key backstop** — **DECIDED → `SPEC.md` §10.4.** A random `age` recovery key generated
+    **by default** (a default, not a requirement) with a **real, reversible opt-out**; mechanism is a second
+    X25519 stanza on the wrapped vault identity (either passphrase or recovery key unwraps it), Coal stores
+    only the public recipient and never the secret (not the repo, not the Secret Service); one-time Emergency
+    Kit (standard `AGE-SECRET-KEY-…`, CLI-recoverable); recovery forces a new passphrase; v1 = one key,
+    N-recipients + FIDO2 held as extension points.
   - [ ] **Wrap-KDF parameters** — clamped scrypt work factor (leaning age-standard, CLI-recoverable) vs Argon2id; pin the minimum.
   - [ ] **Caching default posture** — seamless (Secret-Service, auto-unlock at login) vs conservative
     (passphrase-per-launch); plus vault-timeout defaults.
