@@ -390,6 +390,12 @@ Each node record carries three groups of fields:
   **simhash** (for the fuzzy/ambiguous cases), bounded **neighbor** fingerprints, a **kindTag**
   (paragraph / list-item / table / code), and a **status** (`resolved | dangling | ambiguous`).
 
+**Tier boundary within a node record (fixed in §13.13).** Identity (id / kind / parent), the reference
+*intent* (a link's target), and the durability *fingerprints* (normHash / simhash / neighbors /
+kindTag) are committed Tier-1; the character **range**, the structural **path**, and the resolved
+**status** are Tier-2 derived — recomputed from bytes each session — so volatile positions never churn
+the committed Overlay.
+
 **Opaque ids are acceptable here** precisely because they live in the Overlay and never in a note.
 The property that made `[[uuid]]` intolerable — an opaque token *in the file* — does not apply to a
 token no other editor ever sees.
@@ -432,8 +438,9 @@ survive.
 ### 13.6 Durability — the diff-ratchet
 
 Identity is **maintained, not guessed.** Coal always retains a last-known-good baseline of each
-tracked file (the Overlay's `lastKnownBlob`, deepened by Git history). Re-anchoring is therefore
-always a **diff** (last-known → current), never a search from nothing.
+tracked file (its whole-file hash committed in the Overlay, its bytes kept in a git-ignored cache and,
+when cold, recovered from Git or re-derived — "commit the hash, cache the bytes," §13.15). Re-anchoring
+is therefore always a **diff** (last-known → current), never a search from nothing.
 
 - **Edits made inside Coal** — anchors are updated transactionally as the user types. O(1)-certain;
   distance to cover is zero.
@@ -514,7 +521,7 @@ links surface in the panels (§13.9).
   per §6.
 - **Backlinks** are a Tier-2 derived projection (invert every sidecar's forward references), split
   into **Linked** and **Unlinked mentions** (the latter matched on note title/alias text, since ids
-  are never user-visible). Panel detail is a downstream item (§13.11).
+  are never user-visible). Panel detail is specified in §13.14.
 
 ### 13.10 Relationship to the data model
 
@@ -577,6 +584,418 @@ efficiency**: it never touches the portable bytes, it tolerates the messiness of
 imports (compatibility), and an O(1) hash key over a lexical, parser-free transform keeps resolution
 cheap (efficiency).
 
+### 13.12 Confidence thresholds for the ambiguous band **[DECIDED]**
+
+The concrete cut-points that decide, when the diff-ratchet (§13.6) re-anchors a block it cannot map
+to a certainty, whether the outcome is **silent-resolve** (`status = resolved`), **surfaced-confirm**
+(`status = ambiguous`, amber, one-keystroke), or **dangling** (`status = dangling`). These govern
+*only the residual cases* the ratchet leaves — a deleted block, a verbatim duplicate in scope, or one
+foreign leap large enough that "same block, edited" vs. "replaced block" is a genuine judgment call
+(§13.6 honesty guarantee). The common case never reaches the scorer. All scoring runs **off the main
+thread** (§13.7), consumes only fields ratified in §13.3 plus the frozen normalizer's canonical string
+(§13.11), and writes nothing into notes (§13.1).
+
+**Governing axis — location certainty (two paths).** Re-anchoring an out-of-Coal edit splits on
+whether the diff `lastKnownBlob → current` maps the anchor's old byte range to **exactly one** new
+range:
+
+- **Path 1 — diff-clean** (the common case): location is *certain*. No candidate scoring; the only
+  question is content **magnitude**. `normHash`-exact or simhash Hamming `d ≤ 12` → **resolve
+  silently** (refresh fingerprints, advance the baseline); `d ≥ 13`, or simhash absent and `normHash`
+  differs → **confirm** — a cleanly-located block rewritten past recognition in one foreign hop is
+  still §13.6's "edited vs. replaced" judgment call, so this closes the hole where a clean modify-hunk
+  silently re-points a link at wholly-replaced content.
+- **Path 2 — diff-ambiguous**: the diff broke for this anchor (its old range was deleted with no
+  aligned replacement, aligned to two-or-more regions, or aligned only as an unthreaded delete+insert).
+  Location is *inferred*, so the scorer runs over a bounded candidate set and the AND-gate below decides.
+
+The asymmetry is the principle: diff-certain location buys content tolerance up to the EDITED band;
+inferred location demands near-exact content. A Path-2 fuzzy match means the ratchet *lost* the block,
+so it can never silent-resolve on fuzz.
+
+**The candidate set (Path 2 only).** Candidates are current-bytes blocks in the anchor's **home note
+file** (a cross-file move is a deletion here + a fresh registration there, handled by §13.7 — not by
+this scorer), assembled cheapest-first and capped at **16**: (1) the diff's insert region(s) replacing
+the anchor's deleted range; (2) every block in the same heading section as the anchor's structural
+path; (3) simhash-LSH near-neighbors within the note at Hamming `d ≤ 20`. Dedupe; keep the 16 of
+smallest content distance. **Empty set → dangling.**
+
+**Per-candidate score.** Three components, each in `[0,1]`:
+
+- **`S_content`** — `1.00` on `normHash`-exact (same `normVersion`); else from the 64-bit simhash
+  Hamming distance `d`:
+
+  | distance | class | `S_content` |
+  |---|---|---|
+  | `normHash`-exact | EXACT | 1.00 |
+  | `d ≤ 3` | NEAR | 0.90 |
+  | `4 ≤ d ≤ 12` | EDITED | `0.85 − (d−4)·0.05` (0.85…0.45) |
+  | `13 ≤ d ≤ 20` | DRIFTED | `0.40 − (d−13)·0.05` (0.40…0.05) |
+  | `d ≥ 21` | FOREIGN | 0.00 |
+  | simhash absent ∧ `normHash` differs | — | 0.50 |
+
+  The curve dies by `d ≈ 20` because the expected distance between two *unrelated* 64-bit simhashes is
+  ≈ 32 (a coin-flip per bit); signal must vanish well before that.
+
+- **`S_neighbor`** — `nAgree / K_present`, where the anchor stores up to **4** neighbor fingerprints
+  (the truncated `normHash` of the 2 preceding + 2 following same-level sibling blocks) and `nAgree`
+  counts those matching a block adjacent to the candidate in the same order. `K_present = 0 → 0`
+  (absent neighbors give no corroboration — never a `0.5` fudge; the AND-gate lets position carry an
+  edge block instead).
+
+- **`S_position` ∈ {1.0, 0.5, 0.1}** — against the **diff-projected range** (the gap between the
+  current positions of the anchor's nearest cleanly-remapped siblings, so position stays defined even
+  when the anchor's own map broke): `near = 1.0` (overlaps the projected range, or same structural path
+  and offset delta ≤ 800 chars ≈ one median block); `moderate = 0.5` (same heading ancestry, preserved
+  sibling order, beyond the near window); `far = 0.1` (different heading ancestry, or the diff could
+  not bridge the move).
+
+The composite `C = 0.60·S_content + 0.25·S_neighbor + 0.15·S_position` is used **only** to rank,
+enforce the margin, and split confirm-vs-dangling — **never as the silent gate.** The weights are an
+ordinal encoding of *content ≫ neighbors > position*.
+
+**The band decision (Path 2), in order.** Let `C1`, `C2` be the best and second-best candidate
+(`C2 = 0` if only one). `kindTag` is *not* a filter — it only selects the §13.11 Stage-A extraction, so
+a paragraph turned into a list item keeps its `normHash`.
+
+1. Empty candidate set → **dangling.**
+2. **Silent-resolve** (`resolved`) iff **all three hard gates** pass:
+   - **G1 (content):** `normHash`-exact **or** `d ≤ 3` (EXACT or NEAR).
+   - **G2 (corroboration):** `S_position = near` **or** `S_neighbor ≥ 0.5`.
+   - **G3 (margin):** `C1 − C2 ≥ 0.15`.
+3. Else `C1 < 0.45` → **dangling** (content gone, no positional or neighbor support).
+4. Else → **surfaced-confirm** (`ambiguous`, amber, one-keystroke).
+
+**Load-bearing invariant.** Any candidate passing G1 has `S_content ≥ 0.90`, hence `C1 ≥ 0.54 > 0.45`:
+a content-identical candidate **can never dangle** — at worst it confirms. Dangling requires the
+*content itself* to be gone. Position or neighbor strength can never buy a silent accept for a block
+whose content does not match — that would reintroduce the silent mis-point stand-off identity exists to
+forbid (§13.6). Both normalizer failure directions and every `normVersion` gap fail closed the same
+way: a version mismatch makes G1 unsatisfiable (cross-version hashes are incomparable), so the anchor
+can only confirm or dangle, never silent-resolve.
+
+**Cross-anchor assignment.** When a file reconciles, Path-1 clean maps consume their target blocks
+first; remaining Path-2 anchors resolve in **descending `C1`** (ties broken by ascending node id,
+§13.13), and a block silently *claimed* is removed from every other anchor's candidate set, which
+re-scores their margins. Pending confirms and danglings do not remove a block — the user adjudicates
+them. Two links can therefore never silently resolve to the same block.
+
+**Confirm handling.** On confirm the reconciler records `status = ambiguous` and a pending candidate
+(`nodeId`, `C1`, content class), surfacing it in the *Needs attention* group (§13.9) with the
+last-known target text and the class ("content drifted, simhash d = 16/64 — same block, rewritten?").
+One keystroke: **accept →** `resolved`, re-mint fingerprints from the accepted block and advance the
+baseline; **reject →** `dangling`. Status and the pending candidate are Tier-2 (recomputed each
+session, §13.13), so a confirm is re-surfaced on open by re-running the scorer — nothing is lost.
+Note-level foreign-rename pairing (§13.7) applies the same three-band philosophy at file granularity.
+
+**Fixed constants & versioning.** `SIMHASH_BITS = 64`; simhash is computed over the §13.11 canonical
+string, tokenized on `U+0020` into word unigrams + adjacent bigrams, each feature hashed with the low
+64 bits of `SHA-256(feature)` and sign-summed per bit (standard simhash), minted at a block's lazy
+registration (§13.4) only for blocks with **≥ 12 word tokens** (fewer make a 64-bit simhash noise);
+`d`-class breakpoints `3 / 12 / 20`; composite weights `0.60 / 0.25 / 0.15`; `K_NEIGH = 4`;
+`NEAR_WINDOW = 800` chars; `S_position` tiers `1.0 / 0.5 / 0.1`; `CANDIDATE_CAP = 16`;
+`LSH_RADIUS = 20`; `MARGIN = 0.15`; `DANGLING_FLOOR = 0.45`; the Path-1 silent ceiling `d ≤ 12`. All
+are stamped as a **`resolverVersion`** in the Overlay, independent of `normVersion` (§13.11): a
+`resolverVersion` bump is a deliberate re-scoring migration. The silent band leans on `normHash`-exact
+having ≈ 0 collision probability, so `normHash` is truncated to **≥ 128 bits** and neighbor
+fingerprints — corroboration, not the silent key — to **≥ 64 bits** (§13.13 fixes the encodings). The
+constants are reasoned, not corpus-fit; they fail toward *confirm* (friction), never mis-point, and
+`resolverVersion` makes a post-dogfooding recalibration a first-class migration. The concrete differ
+feeding the Path-1/Path-2 split and `S_position` is a Reconciliation-Engine detail, likewise stamped
+under `resolverVersion` for cross-device determinism.
+
+### 13.13 Sidecar JSON schema & id format **[DECIDED]**
+
+The concrete on-disk shape of a node record and a sidecar, and the opaque stable-id format (§13.3).
+One rule governs every choice: **the committed Overlay carries identity, intent, and content
+*fingerprints* — never verbatim note bytes** (§13.1, §10.2), and **everything derivable from Tier 0 +
+Tier 1 stays Tier-2 and git-ignored** (§13.2).
+
+**Id format.** `<tag>_<id>` — 31 chars, `^(note|hdng|blok|link)_[0-9a-hjkmnp-tv-z]{26}$`. `tag` is one
+fixed 4-char token per §13.3 kind (`note` `hdng` `blok` `link`); `id` is **128 bits of CSPRNG
+randomness** in lowercase Crockford base32 (alphabet `0123456789abcdefghjkmnpqrstvwxyz`, no `i l o u`)
+→ 26 chars, every char `[0-9a-z]` so ids are path/URL/shell-safe, confusable-free, and greppable in the
+Overlay. **No wall-clock, counter, or host id** — coordination-free uniqueness is the only property
+concurrent multi-device minting (§10) needs, and a clock is pure liability (it skews across synced
+devices and would leak node-creation time into a committed artifact). Random beats time-sortable
+(UUIDv7/ULID) because the registry is an *unordered* id-keyed map (§13.3), so sortability buys nothing
+while 128 full-random bits give a stronger collision bound (≈ 1.5×10⁻²¹ at 10⁹ live nodes) than ULID's
+80. **Opacity contract:** code parses only the leading tag; the node's `kind` field is the sole
+authority and never changes; the tag is a debug/merge-readability aid derived from `kind` at mint. Ids
+are minted once (`note` at registration, `blok` lazily on first becoming a target §13.4, `link` when
+authored), immutable, and reused across every referrer. `hdng` is **reserved** — headings resolve by
+their own text (§13.5) and are not persisted.
+
+**Storage tree** (under `.coal/`, mirroring the note tree §13.8):
+
+| Path | Tier | Committed | Holds |
+|---|---|---|---|
+| `.coal/overlay/notes/<note>.json` | 1 | **yes** | schema/norm/resolver versions, root id, baseline scalars, the node registry |
+| `.coal/index/notes/<note>.anchors.json` | 2 | no (git-ignored) | derived per-node `range` + structural `path` + a staleness guard |
+| `.coal/index/**` | 2 | no | backlinks projection, title/alias table, resolved graph, search |
+| `.coal/cache/notes/<note>.blob` | 2 | no | last-reconciled bytes (the baseline), DEFLATE-compressed, purged on lock (§13.15) |
+
+A `.coal/.gitignore` lists `index/` and `cache/` (so `overlay/` — and only it — is committed). The
+note's vault-relative path *is* the mirror location and is stored in no file, so a rename moves the
+sidecars and rewrites zero bytes.
+
+**Committed `.json` — top level** (keys sorted, per the writer below): `schemaVersion` (int, ratified
+**1**), `normVersion` (string, **"1"**, §13.11), `resolverVersion` (string, **"1"**, §13.12), `root`
+(this note's `note`-node id — the value cross-note references target), `baseline`
+(`{ hash, size, commit? }`, see §13.15), `nodes` (id → record), optional `tombstones`
+(`{oldId: newId}` for deterministic id-coalescing after a concurrent-registration merge — keep the
+lexicographically-smaller id).
+
+**Node records**, discriminated by `kind`; any field at its documented default is **omitted**
+(steady-state sidecars stay minimal). Common: `kind`, `parent` (id, or `null` for a note).
+
+- **`note`** — `kind` + `parent: null` only. Title and aliases are Tier-2 (derived from bytes).
+- **`block`** (target-side, lazily persisted §13.4) — `kindTag`
+  (`paragraph|list-item|blockquote|code-fence|table`, drives §13.11 Stage A), `normHash` (128-bit,
+  32 hex), `simhash` (64-bit, 16 hex — present for every ≥ 12-token block per §13.12), `simhashTokens`
+  (int — records *omitted* vs. *failed* for short blocks), `neighbors`
+  (`{prev2?,prev1?,next1?,next2?}`, each a 64-bit-truncated `normHash` of the same-section sibling;
+  §13.12's K = 4).
+- **`link`** (source-side, the Option-1 reference §13.5) — `href` (the exact authored link text incl.
+  delimiters, e.g. `[[Design#Resolution]]` — drives the §13.5 precision decoration), the
+  `kindTag`/`normHash`/`neighbors` of its **containing block** (the link re-anchors as a position
+  inside that block; `normHash` disambiguates *which* occurrence when a note repeats a link text), and
+  `target` (`{ note: <id>, block: <id> | null }` — **ids only, never paths or offsets**, so a
+  reference is immune to renaming the target *and* relocating the block). Precision is **implicit and
+  derived** (block if `target.block` is set, else heading if `href` contains `#`, else note) — the
+  same derivation drives the §13.5 decoration and the §13.14 backlinks sigil; it is never a stored
+  field.
+
+No verbatim note text is committed — there is no `label` or inline content field; last-known target
+text for the panels comes from the Tier-2 baseline cache (§13.14/§13.15). Headings are not persisted (a
+`heading[2]→heading[3]` shift would churn every heading node for zero durable information; the §13.3
+tree is recovered by live-parse and cached in Tier-2).
+
+**This refines §13.3.** Of the node record's three field groups, **Identity** (id/kind/parent), the
+reference **intent** (`target`), and the **durability fingerprints**
+(`normHash`/`simhash`/`neighbors`/`kindTag`) are committed Tier-1; the character **range** and the
+structural **path** (the Anchor group) and the resolved **`status`** are **Tier-2 derived** —
+recomputed from bytes each session — so volatile positions and statuses never churn the committed
+Overlay. `status` (`resolved` default | `dangling` | `ambiguous`) is the resolver's *output*, computed
+on the §13.7 Open/reconcile pass and held in the in-memory Overlay the §13.9/§13.14 panels subscribe
+to; it is never committed. The derived anchors file
+(`.coal/index/notes/<note>.anchors.json`) carries, per node, `range` = half-open `[start, end)` UTF-8
+byte offsets into current bytes (converted to CodeMirror UTF-16 at the load boundary), `path` =
+`/`-joined 0-based structural path (`note/heading[i]/block[j]`), and a `forBaseline` guard (=
+`baseline.hash`; mismatch → recompute). Exact enumeration of setext/frontmatter/HTML-comment blocks
+rides on the parser ratification; `table`-kind extraction defaults to as-is payload (§13.11 Stage A)
+pending a dedicated rule.
+
+**Frozen canonical JSON writer.** Re-serializing unchanged data must be **byte-identical**, or every
+save churns everything (as consequential as the frozen normalizer §13.11): UTF-8, LF, single trailing
+newline; 2-space indent, one key/element per line (line-oriented diff + 3-way merge); **all object keys
+sorted ascending by code point at every level, including the `nodes` id-keys**; shortest round-trip
+integers; defaulted fields omitted. A conformance vector ships with the schema, gated by
+`schemaVersion`. Consequence: a one-block text edit rewrites only that node's fingerprint lines in
+place (id unchanged → position unchanged); a new reference inserts a `link_…` node at its sorted
+position (random ids scatter, so concurrent adds on two devices rarely land adjacent → 3-way-mergeable,
+§13.15); volatile ranges never appear here at all.
+
+### 13.14 Backlinks panel UX **[DECIDED]**
+
+Detailing §13.9's backlinks projection. **One Tier-2 projection, two keyboard front-ends** (§8): a
+panel and a minibuffer command read the same reactive source, so they can never disagree; both are
+current-note-scoped and rebuild from Tiers 0+1.
+
+**Placement.** `coal.backlinks` is a right-dock leaf, **separate from** the `coal.dangling` leaf
+(§13.9); the default layout stacks Backlinks above Dangling (co-visible), but they are independent.
+Their conditionality differs by design: Dangling is *conditional-on-content* — an alarm that
+auto-surfaces only when the current note has unresolved outbound links; Backlinks is
+*conditional-on-invocation* (`auto_show = false`) — "who points here?" is a reference you reach for,
+revealed with `backlinks-show` and thereafter persistent per workspace. The two directions are disjoint
+(Backlinks = inbound; Dangling = outbound-broken), so nothing is double-counted. The one seam: an
+inbound **block-precise** reference whose target block was deleted from *my* note shows in *my*
+Backlinks as an amber-degraded entry, and separately as a *Broken* entry in the **source** note's own
+Dangling panel — because that defect lives in the source's sidecar (§13.3 ownership). The default
+instance follows the active note; `backlinks-pin` mints a title-locked instance.
+
+**Two groups, fixed order.**
+
+- **Linked — stable-id inversion** (exact, cheap): invert every sidecar's forward `link` nodes and
+  collect those whose `target.note` is the current note; a pure id join, ready on open. Each entry
+  carries the source note, the link's anchor range, the derived precision, and — when the target block
+  is not `resolved` — the block status and its **last-known target text**, read from the **target**
+  note's Tier-2 baseline cache keyed by the target block node (never the source's bytes, §13.3; absent
+  on a cold cache → the sigil shows without a quote).
+- **Unlinked mentions — frozen-normalizer name scan** (heuristic, promotable): the expensive half,
+  computed off-thread (§13.7) and cached in Tier-2. A note's **name set** is `{ filename stem, first
+  H1 text, each frontmatter alias }` — all user bytes, never Coal-written (§13.1) — each reduced to its
+  §13.11 canonical form. An Aho-Corasick automaton over all notes' normalized name sets is run over
+  each note's **normalized text stream** (same §13.11 function → minter/matcher symmetry), retaining a
+  monotonic normalized-index → raw-byte-offset map (mandatory, since Stage B collapses whitespace and
+  folds typography) so every hit resolves back to a **raw** byte range. A hit counts only with token
+  boundaries on both sides in normalized space (never `Notes` inside `Notebook`), outside
+  code/inline-code/frontmatter/existing-link spans, non-self, of normalized length ≥
+  `min_mention_length` (3) and not on `mention_stopnames`. Matching is **exact-after-normalization
+  only** (the `normHash` exact band); `normVersion` is stamped, and a normalizer migration invalidates
+  the automaton and rescans. Fuzzy (simhash) mentions are **off by default** (`fuzzy_mentions =
+  false`); enabling them adds a clearly-marked "Similar mentions" group, sorted last, still
+  manual-promote-only. Invalidation is bounded: a note's *text* change rescans only that note against
+  the full automaton; a note's *name-set* change rescans the corpus for that note's patterns alone —
+  never a full re-derive.
+
+**Layout.** Group headers carry live totals (`Linked · 7 (2 broken)`, `Unlinked mentions · 4`); within
+a group, entries are grouped by source note (collapsible, count-badged) and ordered by document offset;
+source groups sort by `recency` (default), `count`, or `title` (cycled with `s`). Each entry shows the
+source name, a **raw** context snippet (never normalized; single line, `snippet_max_chars = 120`,
+hit-highlighted; `c` cycles to full paragraph), and a leading **block-precision sigil** shared with the
+§13.5 Live-Preview decoration — `·` note, `§` heading, `◆` block resolved, `◇` block degraded (amber,
+trailing `⟨block removed: "…"⟩` or `⟨block ambiguous⟩`). Designed empty states throughout.
+
+**Interactions.** `RET` **jump-to** (reuse the active leaf; `C-RET` splits) — caret to the anchor,
+brief flash. `SPC` **peek** — a strictly read-only, throwaway CodeMirror preview around the anchor that
+never touches the byte-for-byte save path, debounced, reverted on `Esc`. `p` **promote unlinked
+mention → link** — the **only** note-mutating action in either panel, obeying §13.1 exactly: it writes
+a **portable, zero-identity** wikilink into the **source** note (never the target), replacing the
+mention span with the bytes the user would type — `[[Target]]` when the text equals the target's
+canonical name, else `[[Target|shown text]]` (Markdown) / `[[Target][shown text]]` (Org), in the
+source's syntax; it is **note-level by construction** (never a block refinement), goes through the
+normal edit/save path (so §13.7 registers the new `link` node in the source's sidecar and the entry
+migrates to Linked on the next projection, and ordinary undo reverts it), is confirm-gated, and on an
+**ambiguous** target name offers a still-portable path-qualified `[[folder/Target]]` rather than
+guessing (§13.6 honesty). Bulk `backlinks-promote-source` is count-confirmed; vault-wide promote-all
+lives only in the §13.9 housekeeping surface.
+
+**Commands & keys** (§6/§8/§9). Every affordance is a namespaced `backlinks-*` command in the central
+registry — `M-x`-visible, rebindable, `isAvailable()`-gated — with the panel keymap and the minibuffer
+`backlinks-jump` (the same entry list rendered with live read-only preview and narrowing to
+linked/unlinked/broken) as front-ends onto it; the mouse is additive. Default links prefix `C-c l`:
+`b` show · `d` dangling-show · `j` jump · `u` jump-unlinked · `p` promote-at-point. Panel-local:
+`C-n`/`C-p` entry, `M-n`/`M-p` group, `RET`/`C-RET` visit, `SPC` peek, `TAB`/`S-TAB` fold, `p`/`P`
+promote, `/` filter, `s` sort, `c` context density, `u` toggle-unlinked, `L`/`U` narrow, `g` refresh,
+`q` quit. A `[backlinks]` TOML block (§9) carries the knobs (`auto_show`, `unlinked_mentions`,
+`fuzzy_mentions`, `min_mention_length`, `mention_stopnames`, `sort`, `snippet_max_chars`,
+`peek_debounce_ms`, `promote_confirm`); sidecars stay JSON (§13.8).
+
+### 13.15 Git posture — the additive layer **[DECIDED]**
+
+Detailing §13.6/§13.7's promise that Git *strengthens* re-anchoring and rename detection but is
+**never required for correctness.** One invariant carries the section: **Git is never in the
+correctness path.**
+
+**The correctness invariant.** For every note, resolution of every reference into it and re-anchoring
+of every node its sidecar owns are a **total function of Tier 0 (current bytes) + Tier 1 (committed
+sidecar)**, computed without reading Git. The presence or absence of a `.git` directory, of any
+history, or of a network **never changes a verdict and never changes the `range` of a `resolved`
+one** — Git changes only *performance* and the *confidence of a bounded, enumerated set of hard cases*,
+always by promotion up the lattice `dangling < ambiguous < resolved`, never demotion, never a different
+target. A plain directory that was never a repo, and a repo whose notes were never committed, are
+therefore **fully correct** configurations, not degraded ones.
+
+**Where the baseline lives — commit the hash, cache the bytes.** The diff-ratchet (§13.6) needs a
+`last-known → current` diff, hence both texts. The realization: **at any consistent committed/saved
+state the note's own current bytes *are* the last-reconciled bytes** (Tier 0 and Tier 1 were written
+together). So the baseline is not committed as a second copy of the note — which would also drag
+verbatim user content into the committed tree against §10.2. Instead:
+
+- **Committed** in the sidecar (Tier-1, plaintext): `baseline = { hash, size, commit? }` — `hash` is
+  the **full, untruncated** SHA-256 of the last-known bytes (the whole-file dirty-check key, the exact
+  foreign-rename pairing key of §13.7, and the consistent-vs-divergent gate; deliberately distinct from
+  §13.11's *truncated* per-node `normHash`), `size` the byte length (the mtime+size pre-filter §13.7),
+  and `commit` an optional last-known Git commit id (or absent). mtime is **never committed** (it
+  differs across synced devices and would churn); it is queried live as an advisory pre-filter only.
+- **Cached** as raw bytes (Tier-2, git-ignored) at `.coal/cache/notes/<note>.blob`, DEFLATE-compressed,
+  **purged on lock and regenerated on unlock** (honoring §10.2's "re-lock on close").
+
+**Baseline bootstrap** (this closes the invariant on a fresh clone / cold cache / post-lock). Compare
+the note's current whole-file hash to the committed `baseline.hash`:
+
+- **Consistent** (equal): current bytes *are* the baseline, the committed anchors are valid as written,
+  the cache is re-seeded from current bytes — **no search, no Git.** The overwhelming common case.
+- **Divergent** (unequal): a foreign change landed while Coal was not maintaining the cache, so the
+  *pre-change* bytes are needed. In order: (1) cache blob present → use it (Overlay-only); (2) else
+  repo present and `baseline.commit` set → `git cat-file blob <commit>:<path>` (Git strengthens: exact
+  ratchet → silent); (3) else bounded per-anchor fingerprint re-location against current bytes,
+  degrading to an **amber confirm** on any ambiguity — never a mis-point. Because step 3 is always
+  available and correct-modulo-a-confirm, step 2 is itself a confidence upgrade, not a dependency.
+
+A committed per-note baseline blob is therefore **rejected**: with no repo there is no committed blob
+either (identical fingerprint+confirm fallback); with a repo it merely duplicates `git cat-file`; and
+it would double working-tree bytes and commit verbatim user content (§10.2).
+
+**Encryption split** (consistent with §10.2, not re-decided here). The committed Overlay is plaintext
+JSON and **outside** §10.2's content scope: it holds one-way hashes (`baseline.hash`, `normHash`) and
+coarse non-reversible fingerprints (`simhash`, `neighbors`) that must stay plaintext to remain diffable
+and mergeable. The sole artifact mirroring verbatim note content — the Tier-2 baseline cache — is
+git-ignored and purged on lock. Residual: committed `simhash`/`neighbors` leak coarse similarity
+structure of otherwise-encrypted notes; this is an inherited §13.2 consequence (the Overlay is
+committed plaintext), named here for the §10.3 threat model, not introduced here.
+
+**Every §13.6/§13.7 mechanism runs Overlay-only.** Dirty-check, in-Coal transactional anchoring, the
+diff-ratchet across a foreign edit, the relocated/altered/removed outcomes, foreign-rename pairing by
+content, dangling detection, duplicate/ambiguous surfacing, and reference **resolution** proper all
+take inputs from Tier 0 + Tier 1 alone. **Resolution never shells out to Git even when a repo is
+present** — Git participates only in *reconciliation* (maintenance), never in *resolve*.
+
+**The additive layer** — each place Git strengthens, under a **monotonicity rule** (Git may only move a
+verdict *up* the lattice, in the enumerated cases; if Git and the Overlay disagree on the *identity* of
+a match rather than merely its confidence, the case is forced to *ambiguous* — never silently taken
+from Git):
+
+- **G0 — Divergent-state baseline recovery.** `git cat-file blob <commit>:<path>` restores the exact
+  diff basis when the cache is gone (above). *Fallback:* fingerprint re-location → confirm.
+- **G1 — Deepened history for a large foreign leap.** When one hop is a genuine "edited vs. replaced"
+  judgment call, `git rev-list --reverse <commit>..HEAD -- <path>` (with `--follow` across a rename) +
+  per-revision `git cat-file blob` decomposes it into small certain hops, replaying the ratchet
+  commit-by-commit. *Fallback:* the single hop is attempted; clears the margin → silent, else one amber
+  confirm.
+- **G2 — Committed-rename detection.** `git diff --name-status --find-renames=50%` yields the `R<score>`
+  pairs Git already computed; an `R ≥ 50%` re-pairs an orphaned sidecar even when content also changed.
+  The 50% floor is Git's default and is deliberately **not lowered** — a sub-50% "rename" is exactly a
+  case a human should confirm. *Fallback:* content pairing against the bootstrapped baseline.
+- **G3 — Post-Git reconcile scoping.** After pull/merge/checkout/rebase,
+  `git diff --name-status -z --find-renames=50% <old>..<new>` gives the exact changed set, so Coal
+  rescans only those files instead of stat-walking the vault. *Wiring:* per-clone
+  `post-merge`/`post-checkout`/`post-rewrite`/`post-commit` hooks append the precise old→new ref pair
+  (from the hook's own arguments, avoiding reflog dependence) to a `.coal/cache/` queue drained by the
+  running app; the filesystem watcher also watches `.git/HEAD` and `.git/refs/**`. *Fallback:* the
+  startup reconcile + watcher dirty-check catches every changed file regardless (a `git pull`'s writes
+  fire the watcher). Post-Git changes *which* files are scanned and *how fast*, never *what is found*.
+
+**Multi-device sidecar merges** (§10). Per-file sidecars (§13.8) give merge locality: disjoint notes
+edited on two devices are distinct files → Git unions them with zero conflict. For the same note edited
+on both, three layered defenses, none ever *required* for correctness:
+
+1. **Markerless serialization** (the zero-config floor): the frozen writer's one-record-per-line,
+   id-sorted form (§13.13) lets Git's default line merge union concurrent *additions* and disjoint
+   edits with no markers and no driver — the dominant case, correct even on a fresh clone before Coal
+   is installed.
+2. **The `coal-overlay` merge driver** (the strengthener): registered on repo-open via committed
+   `.gitattributes` (`.coal/overlay/**/*.json merge=coal-overlay`), it does a structural 3-way JSON
+   merge — **union the node ids** (minted-once + random → collision-impossible, *no id ever dropped*,
+   so no cross-note reference breaks; a delete is represented as Tier-2 `status`, never id removal, so a
+   delete-vs-edit race resolves to "keep the id, recompute status"); take either side's fingerprints
+   provisionally and flag them for revalidation; and **only when the two sides set a different
+   `target.block` for the same `link` node** mark it `ambiguous`, keep the portable heading-level
+   fallback active, and surface it in the §13.9 amber "Needs attention" group. That link-intent
+   divergence is the **only** sidecar case that ever reaches the user.
+3. **Recompute-on-open** (the always-correct floor): if the driver was not configured and Git left raw
+   markers or invalid JSON, Coal discards both conflicted sides for the affected records, unions the
+   ids, and re-derives every fingerprint by re-running §13.7 reconciliation over the Git-merged note
+   bytes; the cache and baseline scalars are re-seeded from the merged bytes.
+
+An Overlay merge conflict thus always reduces to "re-run §13.7 over the merged Tier 0" — validated
+against bytes, never a blind trust of merged Tier-1 text; a union-of-ids orphan from a
+delete-and-recreate is reaped by the §13.4 GC pass.
+
+**Tier 2 is git-ignored and regenerated**, so it can never conflict. `.coal/.gitignore` lists `index/`
+and `cache/` and never `overlay/`. Because `Tier 2 = f(Tier 0, Tier 1)` and is never transmitted, the
+entire multi-device sync surface is exactly Tier 0 (Git's text merge) + Tier 1 (the union-recompute
+merge above); there is no "index merge" problem, and the baseline blob (which rewrites on nearly every
+edit) never becomes a conflict.
+
+**Restated for ratification.** A vault with no Git history resolves every link exactly as correctly as
+a fully-committed one; the only differences are that a few hard cases Git could auto-resolve (a large
+leap G1, a heavily-edited committed rename G2, a divergent-state baseline G0) surface as one amber
+**confirm** instead, and bulk external changes are caught by a **slower stat-walk** (G3) rather than
+Git's changed-file list. In every case the outcome is a surfaced confirm or a slower scan — never a
+wrong resolve, never a silent mis-point, never data loss.
+
 ---
 
 ## 14. Decision log
@@ -613,3 +1032,7 @@ cheap (efficiency).
 | 2026-07-20 | Overlay storage: **mirrored, lazy, per-file JSON sidecars** under `.coal/` | Churn + merge locality (multi-device sync) and note-folder purity; monolithic / sharded / co-located layouts all rejected. |
 | 2026-07-20 | Dangling links: **current-note** side panel (two groups: Broken / Needs attention) + vault-wide management via a housekeeping settings surface, with `M-x` twins | Low ambient noise in the working view; deliberate full-corpus management on demand; keyboard-first. |
 | 2026-07-21 | Frozen normalizer (§13.11): a versioned, lexical, parser-free function shared by minter + matcher — kind-aware payload extraction, then NFC · LF · whitespace-collapse · a fixed typographic-fold table · locale-invariant case-fold · **markup preserved**; `normHash` = truncated SHA-256, `normVersion` stamped | The normalizer is an identity key, not the durability mechanism (the ratchet is), so it stays conservative — both over- and under-normalizing degrade to a confirm, never a mis-point. Coal emits only literal keyboard text (monospace, no ligatures) so drift enters only via import/foreign editors; the small folds serve exactly that. Serves portability (bytes untouched), compatibility (tolerates other editors), and efficiency (O(1) hash key). |
+| 2026-07-21 | Confidence thresholds (§13.12): silent-resolve is a hard AND-gate — G1 content (`normHash`-exact **or** simhash-64 `d≤3`) ∧ G2 corroboration (position=near **or** neighbor≥0.5) ∧ G3 margin (`C1−C2≥0.15`) — over a content-dominant score `C = 0.60·content + 0.25·neighbor + 0.15·position`; below a `0.45` floor is dangling, everything plausible-but-ungated confirms (amber). Diff-certain location (Path 1) resolves silently up to `d≤12`, confirms drifted (`d≥13`); inferred location (Path 2) demands near-exact content. Candidate set = home note, cap 16, LSH `d≤20`; simhash minted for ≥12-token blocks; constants stamped as `resolverVersion` | The one failure stand-off identity forbids is the silent mis-point (§13.6), so content is a gate position/neighbors can only corroborate — never substitute for; the `0.45` floor sits below the `0.54` any content-identical candidate scores, making "content still exists → never dangle" a structural invariant. Both normalizer failure directions and every `normVersion` gap fail closed to a confirm. |
+| 2026-07-21 | Sidecar schema & id format (§13.13): opaque id = `<tag>_<26-char lowercase-Crockford-base32 of 128 CSPRNG bits>` (tags note/hdng/blok/link; no wall-clock; `hdng` reserved, headings not persisted); per-note committed `.json` registry = ids + kind/kindTag + durability fingerprints (`normHash`-128 / `simhash`-64 / neighbors-64) + link intent (`href`, `target` ids); volatile range/structural-path/status and all title/alias/backlink projections are Tier-2 git-ignored; **no verbatim note text committed**; frozen canonical JSON writer (UTF-8/LF, 2-space, one-key-per-line, all keys sorted, defaults omitted, byte-identical re-serialization); `schemaVersion=1`, `normVersion="1"`, `resolverVersion="1"` | Random beats time-sortable because the registry is an unordered id-keyed map, so a clock is pure liability (skew + creation-time leak) while 128 random bits give coordination-free multi-device uniqueness (§10). Committing fingerprints not bytes keeps the Overlay portable and merge-friendly (§13.8) without mirroring plaintext content into the repo (§10.2); a frozen writer prevents silent churn the way the frozen normalizer prevents silent misses (§13.11). |
+| 2026-07-21 | Backlinks panel UX (§13.14): a `coal.backlinks` right-dock leaf (sibling to `coal.dangling`, default-stacked, `auto_show=false`, follow/pin); one Tier-2 projection, two front-ends (panel + `backlinks-jump` minibuffer preview). **Linked** = stable-id sidecar inversion; **Unlinked** = Aho-Corasick scan of the §13.11-normalized {stem, H1, aliases} name set over each note's normalized text (offset-mapped to raw bytes, token-boundary, exact-after-normalization, `normVersion`-stamped). Shared §13.5 block-precision sigils (`· § ◆ ◇` + last-known); the sole mutating action **promote** writes a portable zero-identity wikilink into the *source* note (note-level, confirm-gated, ambiguity → path-qualified); all affordances `backlinks-*` commands with `M-x` twins; `[backlinks]` TOML config | Stand-off identity (§13.1) forces the Linked/Unlinked split — one group Coal knows by id, one it guesses by user-visible name — and dictates the only legal write is an authored reference into the source note; computing at reconcile and reading at panel time keeps it a regenerable Tier-2 projection (§13.2/§13.7); two front-ends onto one registry is §8 applied to a data surface. |
+| 2026-07-21 | Git posture (§13.15): **commit the hash, cache the bytes** — the diff-ratchet baseline is bootstrapped from current bytes at any consistent state (full-file `baseline.hash` committed as the consistent-vs-divergent gate), with the baseline bytes kept as a git-ignored Tier-2 cache (purged on lock, regenerated); re-anchoring, reconciliation, foreign-rename pairing and dangling detection are a total function of Tier 0 + Tier 1, provably Git-free. Git is a strictly-additive layer admitted only under a monotonicity rule (divergent-baseline recovery via `baseline.commit`, large-leap re-anchor via deepened history, committed-rename via `--find-renames=50%`, Post-Git changed-set scoping) raising a verdict only up `dangling<ambiguous<resolved`. Sidecar merges resolve by markerless id-sorted serialization + a `coal-overlay` structural driver + recompute-from-bytes-on-open; only differing link `target.block` intent ever reaches the user; Tier 2 stays git-ignored and regenerated | Honors "plain text is the source of truth" and "Git-native but never required for correctness": a never-committed, repo-less vault resolves identically to a committed one, and verbatim user content stays out of the committed tree (§10.2); Git only ever saves a keystroke or a stat-walk. |
