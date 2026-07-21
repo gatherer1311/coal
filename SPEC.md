@@ -301,6 +301,98 @@ One substrate, several front-ends.
   is closed**.
 - **Scope:** user notes/content. Configuration (§9) stays plaintext-versioned so it remains
   shareable and declarative.
+- **Mechanism:** specified in §10.3 — `age`/`typage`, app-managed decrypt-to-memory (ciphertext at
+  rest *and* on the remote from one scheme), single passphrase-wrapped vault key.
+
+### 10.3 Encryption mechanism **[DECIDED]**
+
+The concrete scheme realizing §10.2. **One mechanism covers both surfaces** — the off-site/remote
+copy and the local disk are ciphertext by the same means — so "encrypted before it leaves the
+machine" and "encrypted at rest on the device" are one system, not two. Grounded (priors only, §0) by
+the primary-source survey in [`reference/19`](reference/19-encryption-in-git.md).
+
+**Primitive & format — `age`, in-process.** Encryption uses the **`age` format** (ChaCha20-Poly1305
+AEAD; X25519 recipients; scrypt passphrase stanza) via **`typage`** (the `age-encryption` npm package,
+a pure-TypeScript implementation on vetted primitives), so Coal encrypts and decrypts **in-process**
+with no external binary or per-platform native dependency, consistent with the §4 stack. Because every
+file is a standard `age` file, it is decryptable by any `age` client (CLI included), never only by
+Coal — the portability floor below.
+
+**Approach — app-managed decrypt-to-memory.** A note's on-disk representation is a **ciphertext `age`
+file at all times** (logical `note.md` ⇄ on-disk `note.md.age`, or equivalent). Coal decrypts a note
+**into memory** when it is opened, holds the plaintext only in the editor buffer, and **re-encrypts on
+save**; no plaintext note bytes are ever written to disk. Git therefore versions **opaque ciphertext
+files directly** — there is **no clean/smudge filter and no encrypt-on-commit step**, because the
+files are already ciphertext at rest; encryption is a *storage-format* concern, not a git-integration
+one. Re-encryption happens **only on an actual content change** (Coal drives saves and already holds
+the §13.15 `baseline.hash` as the change signal), so an unchanged note yields no new ciphertext and no
+git churn. Encryption is **randomized** (fresh `age` file key per encryption) — **no equality leak**
+between files.
+
+**Key model — a single vault key, password-manager hierarchy.** A vault owns one **X25519 identity**.
+Every note's random per-file key (age-native) is wrapped to that vault recipient; the vault's
+**private key is itself wrapped by a passphrase-derived KEK** (an `age` scrypt-passphrase stanza with
+a clamped minimum work factor, keeping the wrapped identity a standard, CLI-recoverable `age` file)
+and stored in the repo. This reproduces the Bitwarden-style hierarchy
+`passphrase → KDF → KEK → vault identity → per-note keys → note`, and the passphrase and KEK are
+**never stored**. Consequences: **onboarding a second device = clone + enter passphrase** (unwrap the
+identity, decrypt everything) with no cross-device approval step; **passphrase rotation re-wraps one
+small key**, not every note. Per-device revocation is **out of scope** (deliberately — §10.2 is about
+confidentiality, not a device-management fabric).
+
+**Unlock, caching & the lock lifecycle — modeled on password managers.** *Unlock* = enter the
+passphrase → derive the KEK → unwrap the vault identity, held **in the main process only** (never the
+renderer, so the §8.2 capability broker stays the sole path to decrypted content). Decrypted note
+buffers and the plaintext-derived Tier-2 index (§13.15) live in memory (or an encrypted, purge-on-lock
+cache) — never plaintext on disk. **Lock ≠ logout:** *lock* drops the in-memory key and decrypted
+state (the wrapped identity stays, so re-unlock is offline); *logout* additionally forgets the
+identity. A **vault timeout** auto-locks on inactivity, and **re-locking on close returns the disk to
+all-ciphertext** — the strong form of §10.2's "re-locks when the app is closed," now protecting real
+local data. For passwordless re-unlock, Coal may cache a second wrapped copy of the identity in the
+**GNOME Secret Service** (libsecret), gated by a *require-passphrase-on-restart* option — the
+OS-secure-storage pattern password managers use for biometric/PIN unlock.
+
+**Git diff & merge over ciphertext.** Because Git sees ciphertext, Coal supplies: a **`textconv`**
+filter that decrypts for the key-holder so `git diff` shows readable plaintext (its transient
+plaintext is an ephemeral, purge-on-lock surface), and a **merge driver** that decrypts
+BASE/LOCAL/REMOTE, runs the ordinary 3-way text merge, and re-encrypts the result (the transcrypt
+driver is the reference *design*, not a dependency), falling back to in-app conflict resolution. The
+target is **single-user multi-device sync**, where Coal drives commit/push/pull and true conflicts are
+rare.
+
+**Scope — what is and isn't encrypted.** Encrypted at rest and on the remote: **note content** *and*
+the committed **Overlay** (`.coal/overlay/**`) — its `href`, `normHash`, `simhash`, and `neighbors`
+are content-derived and would otherwise leak structure, so bringing it inside the boundary **closes**
+the residual leak §13.15 had named. **Not encrypted:** configuration (§9), which stays
+plaintext-versioned and shareable; and, inherently, **metadata** — filenames, folder structure, file
+sizes, and commit history/timestamps are visible to the remote (`age` encrypts contents, not names).
+That metadata exposure is **accepted, not solved** (§10.2 protects content; a privacy-maximalist
+further reduces it with a private or self-hosted remote), and stated plainly per the honest-boundary
+posture below. The Tier-2 index/cache is plaintext-derived and therefore memory-resident or encrypted,
+**purged on lock** (§13.15).
+
+**Portability — never trapped (amends §13.1).** Ciphertext at rest means the working folder is no
+longer plain Markdown any editor opens; portability is instead an explicit, first-class guarantee with
+three independent exits: (1) the files are **standard `age`** — `age -d` + your key yields Markdown
+with no Coal at all; (2) **Export → plaintext** dumps the whole vault as clean `.md`/`.org` for another
+editor (a deliberate, *warned* action to a chosen destination, since it writes plaintext to disk); (3)
+**Export → Coal bundle** produces an encrypted, lossless copy (including the Overlay). The mirror
+**Import ← plaintext** (encrypt-on-ingest, e.g. an existing Markdown/Obsidian vault) and
+**Import ← Coal bundle** complete the set. Editing *inside* Coal stays plain text (in memory). A
+plaintext export carries notes and portable links but not the Coal-only block-precise Overlay — already
+§13.1's stance.
+
+**Honest boundary.** Borrowing reference/18 §7's discipline: Coal publishes its exact parameters and an
+explicit "what is *not* protected" list (the metadata above), and is candid that while unlocked the
+vault key and decrypted note text are in process memory — so **"lock" is a purge, not a defense against
+a live-memory or root-level attacker**, and the Secret-Service cache trades some of that protection
+(the key's safety becomes the login session's safety) for convenience. Encryption is Coal's default
+operating mode, not an ideological, un-disableable fortress.
+
+_(Remaining detail-level items — a recovery-key backstop, exact wrap-KDF parameters, the caching
+default posture, the on-disk naming scheme's interaction with §13.13 sidecar mirroring, the concrete
+merge-driver/textconv spec, and fully reconciling §13.15's Overlay-merge defenses with an encrypted
+Overlay — are tracked in `TODO.md`.)_
 
 ---
 
@@ -345,11 +437,15 @@ in — never injected into them.
   a note is a *link the user authored* — a wikilink, Markdown link, or Org link. Those are portable
   content. The line is exact: **references (source-side) live in the file; identity anchors
   (target-side) live in the Overlay.**
-- **Files are portable; the deep graph is Coal-only, by design.** A note folder can be picked up and
-  opened in any editor — it is clean Markdown/Org that renders everywhere, and human-readable links
-  resolve however that editor chooses. Coal's *block-precise* graph is an enrichment layer only Coal
-  sees. Portability of the files and of link *meaning* is total; portability of block-precise
-  *navigation* is deliberately Coal-only.
+- **Files are portable — but ciphertext at rest; the deep graph is Coal-only, by design.** Because
+  notes are encrypted at rest (§10.3), the on-disk folder is **not** plain Markdown any editor opens;
+  portability is instead an explicit guarantee — the files are standard **`age`** (decryptable by any
+  `age` client + your key), and Coal offers one-command **Export → plaintext** `.md`/`.org` plus a
+  lossless encrypted **Coal bundle** (with mirror imports). Decrypted, the content is clean
+  Markdown/Org whose human-readable links resolve however another editor chooses. Coal's
+  *block-precise* graph is an enrichment layer only Coal sees. Portability of the content and of link
+  *meaning* is total (via decrypt/export); portability of block-precise *navigation* is deliberately
+  Coal-only.
 
 ### 13.2 The three-tier model
 
@@ -918,13 +1014,17 @@ A committed per-note baseline blob is therefore **rejected**: with no repo there
 either (identical fingerprint+confirm fallback); with a repo it merely duplicates `git cat-file`; and
 it would double working-tree bytes and commit verbatim user content (§10.2).
 
-**Encryption split** (consistent with §10.2, not re-decided here). The committed Overlay is plaintext
-JSON and **outside** §10.2's content scope: it holds one-way hashes (`baseline.hash`, `normHash`) and
-coarse non-reversible fingerprints (`simhash`, `neighbors`) that must stay plaintext to remain diffable
-and mergeable. The sole artifact mirroring verbatim note content — the Tier-2 baseline cache — is
-git-ignored and purged on lock. Residual: committed `simhash`/`neighbors` leak coarse similarity
-structure of otherwise-encrypted notes; this is an inherited §13.2 consequence (the Overlay is
-committed plaintext), named here for the §10.3 threat model, not introduced here.
+**Encryption split** (updated by §10.3). The committed Overlay is now **inside** the encryption
+boundary: because its `href` (authored link text), `normHash`, `simhash`, and `neighbors` are all
+content-derived, §10.3 encrypts the Overlay sidecars at rest and on the remote alongside notes, which
+**closes** the residual coarse-similarity leak this section had flagged for the §10.3 threat model.
+Consequence for the merge model above: with the Overlay stored as ciphertext, Git's default line merge
+of the plaintext JSON no longer applies, so the `coal-overlay` structural driver becomes **required**
+(gaining a decrypt → 3-way merge → re-encrypt wrapper, shared with §10.3's note merge driver), with
+**recompute-from-bytes-on-open** as the always-correct floor; the id-sorted frozen serialization
+(§13.13) still governs the *plaintext* the driver merges. The Tier-2 baseline cache stays git-ignored
+and purged on lock. (Reconciling every §13.15 merge defense with the encrypted Overlay in full detail
+is tracked in `TODO.md`.) Configuration (§9) stays plaintext.
 
 **Every §13.6/§13.7 mechanism runs Overlay-only.** Dirty-check, in-Coal transactional anchoring, the
 diff-ratchet across a foreign edit, the relocated/altered/removed outcomes, foreign-rename pairing by
@@ -1036,3 +1136,4 @@ wrong resolve, never a silent mis-point, never data loss.
 | 2026-07-21 | Sidecar schema & id format (§13.13): opaque id = `<tag>_<26-char lowercase-Crockford-base32 of 128 CSPRNG bits>` (tags note/hdng/blok/link; no wall-clock; `hdng` reserved, headings not persisted); per-note committed `.json` registry = ids + kind/kindTag + durability fingerprints (`normHash`-128 / `simhash`-64 / neighbors-64) + link intent (`href`, `target` ids); volatile range/structural-path/status and all title/alias/backlink projections are Tier-2 git-ignored; **no verbatim note text committed**; frozen canonical JSON writer (UTF-8/LF, 2-space, one-key-per-line, all keys sorted, defaults omitted, byte-identical re-serialization); `schemaVersion=1`, `normVersion="1"`, `resolverVersion="1"` | Random beats time-sortable because the registry is an unordered id-keyed map, so a clock is pure liability (skew + creation-time leak) while 128 random bits give coordination-free multi-device uniqueness (§10). Committing fingerprints not bytes keeps the Overlay portable and merge-friendly (§13.8) without mirroring plaintext content into the repo (§10.2); a frozen writer prevents silent churn the way the frozen normalizer prevents silent misses (§13.11). |
 | 2026-07-21 | Backlinks panel UX (§13.14): a `coal.backlinks` right-dock leaf (sibling to `coal.dangling`, default-stacked, `auto_show=false`, follow/pin); one Tier-2 projection, two front-ends (panel + `backlinks-jump` minibuffer preview). **Linked** = stable-id sidecar inversion; **Unlinked** = Aho-Corasick scan of the §13.11-normalized {stem, H1, aliases} name set over each note's normalized text (offset-mapped to raw bytes, token-boundary, exact-after-normalization, `normVersion`-stamped). Shared §13.5 block-precision sigils (`· § ◆ ◇` + last-known); the sole mutating action **promote** writes a portable zero-identity wikilink into the *source* note (note-level, confirm-gated, ambiguity → path-qualified); all affordances `backlinks-*` commands with `M-x` twins; `[backlinks]` TOML config | Stand-off identity (§13.1) forces the Linked/Unlinked split — one group Coal knows by id, one it guesses by user-visible name — and dictates the only legal write is an authored reference into the source note; computing at reconcile and reading at panel time keeps it a regenerable Tier-2 projection (§13.2/§13.7); two front-ends onto one registry is §8 applied to a data surface. |
 | 2026-07-21 | Git posture (§13.15): **commit the hash, cache the bytes** — the diff-ratchet baseline is bootstrapped from current bytes at any consistent state (full-file `baseline.hash` committed as the consistent-vs-divergent gate), with the baseline bytes kept as a git-ignored Tier-2 cache (purged on lock, regenerated); re-anchoring, reconciliation, foreign-rename pairing and dangling detection are a total function of Tier 0 + Tier 1, provably Git-free. Git is a strictly-additive layer admitted only under a monotonicity rule (divergent-baseline recovery via `baseline.commit`, large-leap re-anchor via deepened history, committed-rename via `--find-renames=50%`, Post-Git changed-set scoping) raising a verdict only up `dangling<ambiguous<resolved`. Sidecar merges resolve by markerless id-sorted serialization + a `coal-overlay` structural driver + recompute-from-bytes-on-open; only differing link `target.block` intent ever reaches the user; Tier 2 stays git-ignored and regenerated | Honors "plain text is the source of truth" and "Git-native but never required for correctness": a never-committed, repo-less vault resolves identically to a committed one, and verbatim user content stays out of the committed tree (§10.2); Git only ever saves a keystroke or a stat-walk. |
+| 2026-07-21 | Encryption mechanism (§10.3): one scheme for **both** remote and local at-rest — **app-managed decrypt-to-memory** with **`age`/`typage`** (ChaCha20-Poly1305 / X25519, in-process TS, no external binary). Notes are ciphertext `age` files at rest, so Git versions opaque blobs (no clean/smudge filter), re-encrypted only on real change (randomized → no equality leak). **Single vault X25519 identity, passphrase-wrapped** (`age` scrypt-passphrase, clamped) in a Bitwarden-style hierarchy (passphrase→KEK→identity→per-note keys), so device onboarding = clone + passphrase and rotation re-wraps one key. Unlock holds the key in the main process only, **lock = purge** (optional GNOME Secret-Service cache); `textconv` + a decrypt→3-way→re-encrypt merge driver give diffs/merges. **Overlay encrypted too** (closes the §13.15 leak); **config stays plaintext**; portability via standard-`age` + import/export (amends §13.1). Metadata (names/sizes/history) deliberately not hidden. | Delivers §10.2 (content ciphertext on the remote **and** at rest) from one in-process mechanism on vetted primitives — no git-filter, no external tool. The decrypt-to-memory + single passphrase-wrapped vault key mirrors password-manager practice (Bitwarden) and keeps multi-device onboarding to 'clone + passphrase'; `age` keeps the format open (CLI-decryptable) so import/export preserve portability. Metadata leak is accepted (mitigable by a private/self-hosted remote), not solved. Grounded by the reference/19 survey. |
