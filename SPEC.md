@@ -12,8 +12,8 @@
 ## 0. How to read this document
 
 **`SPEC.md` records only ratified decisions** — final design decisions and deliberate scope
-boundaries, each tagged **[DECIDED]**. Anything still open, pending, or in-progress lives in
-[`TODO.md`](TODO.md), not here.
+boundaries; everything here is decided by definition. Anything still open, pending, or in-progress
+lives in [`TODO.md`](TODO.md), not here.
 
 **On the `reference/` directory.** Those files are *research and priors only* — a record of how
 Emacs tooling, Org, and other PKM apps solved problems, plus notes from a prior, abandoned
@@ -63,8 +63,7 @@ Non-negotiables. Every downstream decision must be consistent with them.
 
 ---
 
-## 3. Platform & packaging **[DECIDED]**
-
+## 3. Platform & packaging
 - **Primary platform:** Linux, first-class. GNOME is the reference desktop.
 - **Packaging & supported systems:** RPM is the **launch** target; the full supported-system matrix
   (Linux DEB / Flatpak, macOS, Android) is fixed in §3.1.
@@ -81,7 +80,7 @@ Non-negotiables. Every downstream decision must be consistent with them.
   in GNOME. It is **not** built from native GTK/libadwaita widgets. "Full GNOME integration" means
   the desktop-integration layer above, not a native toolkit.
 
-### 3.1 Supported systems **[DECIDED — target set; per-platform build work tracked in `TODO.md`]**
+### 3.1 Supported systems
 
 Linux is **primary and first-class** (§2); the other targets are **additional** and must never
 compromise the Linux-first experience — Coal is not "a cross-platform app with a Linux build bolted
@@ -104,8 +103,7 @@ on" (§2). The supported set:
 
 ---
 
-## 4. Technology stack **[DECIDED]**
-
+## 4. Technology stack
 - **Shell:** Electron.
 - **Editor core:** CodeMirror 6.
 - **Implementation language:** TypeScript. Both decided stack components — Electron and
@@ -118,8 +116,7 @@ _(Graph/visual-rendering library and similar specifics are tracked in `TODO.md` 
 
 ---
 
-## 5. Document formats **[DECIDED]**
-
+## 5. Document formats
 - Coal supports **Markdown** and **Org** as **first-class document formats**, side by side.
 - **Org depth = document format, not the Org application.** In scope: full Org *syntax* —
   headings, TODO keywords, links, tables, inline markup, properties/drawers — with live-preview
@@ -137,8 +134,7 @@ _(Graph/visual-rendering library and similar specifics are tracked in `TODO.md` 
 
 ---
 
-## 6. Interaction model **[DECIDED]**
-
+## 6. Interaction model
 - **Keyboard-first**, for the editor, the minibuffer, and constantly-used quick-access features.
 - **Two first-class keymaps out of the box: Emacs *and* Vim.** Both ship, both are fully supported,
   and the user **chooses at first run** (there is no baked-in default); the choice is a declarative
@@ -169,8 +165,7 @@ _(Graph/visual-rendering library and similar specifics are tracked in `TODO.md` 
 
 ---
 
-## 7. View modes **[DECIDED]**
-
+## 7. View modes
 - Coal has exactly two views: **Live Preview** and **Source**.
 - **There is no separate Reading / render-only mode** (for now).
 - Consequence: render-only features that would belong to a reading mode — e.g. Mermaid diagrams,
@@ -181,8 +176,7 @@ _(Graph/visual-rendering library and similar specifics are tracked in `TODO.md` 
   same CodeMirror 6 instance; Source is Live Preview with all hide/replace decorations suppressed,
   so switching is instant and preserves scroll and selection.
 
-### 7.1 Live Preview — reveal/hide behavior **[DECIDED]**
-
+### 7.1 Live Preview — reveal/hide behavior
 Live Preview prettifies inline markup (hiding the syntax markers and styling the rendered form) and
 reveals the raw source again near the caret so it stays directly editable. The specifics:
 
@@ -213,8 +207,7 @@ reveals the raw source again near the caret so it stays directly editable. The s
   `[[target][desc]]`, TODO keywords, and property/drawer lines are prettified and revealed on the
   same rules as their Markdown counterparts.
 
-### 7.2 Live Preview — inline rendering scope **[DECIDED]**
-
+### 7.2 Live Preview — inline rendering scope
 With no Reading mode (§7), what renders inline in Live Preview is decided per element. The governing
 rule: **an element renders inline only when its authoring source stays inline and editable** — the
 markup is a thin wrapper you still edit as text (typographic markup, tables, task text) or a passive
@@ -252,8 +245,7 @@ in Live Preview, consistent with "no render mode."
 
 ---
 
-## 8. Extensibility architecture **[DECIDED]**
-
+## 8. Extensibility architecture
 One substrate, several front-ends.
 
 - **Central command registry.** Everything Coal can do is a *command* registered in one place.
@@ -271,8 +263,7 @@ One substrate, several front-ends.
   substrate. The **registry of official plugins** — committed and proposed — is [`PLUGINS.md`](PLUGINS.md);
   *which* remaining features are core versus official plugins is an open split tracked in `TODO.md`.
 
-### 8.1 Theming mechanism **[DECIDED]**
-
+### 8.1 Theming mechanism
 - **Themes are expressed as CSS custom properties (CSS variables).** The shell is web technology
   (§3–4), so the styling substrate is CSS; a theme is a set of variable definitions the whole UI
   reads from, not a fork of component styles. This is what lets the core and third-party themes
@@ -291,8 +282,7 @@ One substrate, several front-ends.
 - _(The concrete variable catalogue — the exact names and what each controls — is a build-time
   detail that lands with the first themable surfaces, not a spec-level decision.)_
 
-### 8.2 Plugin API & sandboxing **[DECIDED]**
-
+### 8.2 Plugin API & sandboxing
 - **Language.** Plugins are authored in **TypeScript / JavaScript** against the **same typed API
   the core is written against** (§4, §8). There is no separate embedded plugin language;
   "core-as-plugins" means one API surface and one language, not a privileged native core with a
@@ -337,8 +327,7 @@ One substrate, several front-ends.
   call is **identical**; what differs across trust tiers is **which capabilities are granted**, not
   the API itself. Core-as-plugins holds at the API level; the capability broker is orthogonal to it.
 
-### 8.3 Plugin management & enablement **[DECIDED]**
-
+### 8.3 Plugin management & enablement
 - **Plugins are managed declaratively, like all configuration (§9).** The set of installed plugins
   and their enabled/disabled state lives in a plain-text, version-controllable config file:
   **`.coal/config/PLUGINS.<ext>`** (`<ext>` per §9 — TOML by default), portable with the rest of the
@@ -354,8 +343,7 @@ One substrate, several front-ends.
 
 ---
 
-## 9. Configuration model **[DECIDED]**
-
+## 9. Configuration model
 - **Everything is operated from plain-text, version-controllable files** — editor configuration,
   keybindings, and theme definitions included, not just notes.
 - **The GUI is a front-end, not a store.** Settings panes and menus **read and write text files
@@ -376,13 +364,11 @@ One substrate, several front-ends.
 
 ## 10. Sync, version control & privacy
 
-### 10.1 Git version control **[DECIDED]**
-
+### 10.1 Git version control
 - Git is a **first-class** part of Coal, not an optional integration. It provides **free off-site
   sync** (a deliberate advantage over paid-sync models) and complete, browsable **history**.
 
-### 10.2 Encryption at rest **[DECIDED]**
-
+### 10.2 Encryption at rest
 - **A first-class, built-in, *opt-in* core feature — off by default.** When a vault has encryption
   enabled, notes / user content are stored as ciphertext, so neither the remote host nor a
   lost/stolen device exposes the content; a private repo alone is not relied on. It is **not** a
@@ -403,8 +389,7 @@ One substrate, several front-ends.
   (ciphertext at rest *and* on the remote from one scheme), single passphrase-wrapped vault key; the
   forgotten-passphrase backstop is §10.4.
 
-### 10.3 Encryption mechanism **[DECIDED]**
-
+### 10.3 Encryption mechanism
 The concrete scheme realizing §10.2 **for a vault that has encryption enabled** (an opt-in, per-vault
 choice, §10.2). **One mechanism covers both surfaces** — the off-site/remote
 copy and the local disk are ciphertext by the same means — so "encrypted before it leaves the
@@ -494,8 +479,7 @@ parameters, the caching default posture, the on-disk naming scheme's interaction
 mirroring, the concrete merge-driver/textconv spec, and fully reconciling §13.15's Overlay-merge
 defenses with an encrypted Overlay — are tracked in `TODO.md`.)_
 
-### 10.4 Recovery key **[DECIDED]**
-
+### 10.4 Recovery key
 The §10.3 key model makes the passphrase the **sole** gate on the vault identity, and §10.2 puts real
 local data behind it — so a forgotten passphrase is otherwise **permanent, total loss of every note.**
 Coal's backstop is a **recovery key**, generated **by default when a vault enables encryption** (at
@@ -543,8 +527,7 @@ kits — printed, password-manager, a trusted third party) and typage's **FIDO2/
 
 ---
 
-## 11. License **[DECIDED]**
-
+## 11. License
 - **Coal is open source under the Apache License 2.0.**
 - **Why Apache-2.0:** it is permissive — which keeps the plugin/theme ecosystem and contribution
   frictionless — and fully compatible with the entire intended dependency stack (all MIT / ISC /
@@ -556,8 +539,7 @@ kits — printed, password-manager, a trusted third party) and typage's **FIDO2/
 
 ---
 
-## 12. Documentation model **[DECIDED]**
-
+## 12. Documentation model
 - Documentation is **first-class and written as-we-go**: a feature is not "done" without its docs.
 - Documentation is **split by audience** so neither reader wades through the other's material:
   - `docs/user/` — how to *use* Coal to edit files. Assumes no interest in internals.
@@ -567,8 +549,7 @@ kits — printed, password-manager, a trusted third party) and typage's **FIDO2/
 
 ---
 
-## 13. Linking, identity & the Overlay **[DECIDED]**
-
+## 13. Linking, identity & the Overlay
 Coal's linking and index system. The design is
 **stand-off identity**: the note file is inviolable plain text, and all the identity that powers
 links, backlinks, and block addressing lives in a Coal-maintained layer *above* the notes, pointing
@@ -767,8 +748,7 @@ links surface in the panels (§13.9).
   into **Linked** and **Unlinked mentions** (the latter matched on note title/alias text, since ids
   are never user-visible). Panel detail is specified in §13.14.
 
-### 13.10 Relationship to the data model **[DECIDED]**
-
+### 13.10 Relationship to the data model
 The data model is settled: a note is a **document with addressable sub-blocks**, **not an outliner**.
 Blocks are addressable units *within* document notes, one canonical node per block, and nothing
 structural depends on the block layer.
@@ -781,8 +761,7 @@ structural depends on the block layer.
   design (interaction model, any structure persistence, Markdown/Org parity §5) is tracked in
   `TODO.md`.
 
-### 13.11 The frozen normalizer **[DECIDED]**
-
+### 13.11 The frozen normalizer
 The single, byte-identical text-normalization function shared by the suggester's **minter** (which
 records a block's fingerprint at link-creation) and the resolver's **matcher** (which re-anchors). If
 the two ever normalized one byte differently, links would silently miss — so this is frozen as a
@@ -835,8 +814,7 @@ efficiency**: it never touches the portable bytes, it tolerates the messiness of
 imports (compatibility), and an O(1) hash key over a lexical, parser-free transform keeps resolution
 cheap (efficiency).
 
-### 13.12 Confidence thresholds for the ambiguous band **[DECIDED]**
-
+### 13.12 Confidence thresholds for the ambiguous band
 The concrete cut-points that decide, when the diff-ratchet (§13.6) re-anchors a block it cannot map
 to a certainty, whether the outcome is **silent-resolve** (`status = resolved`), **surfaced-confirm**
 (`status = ambiguous`, amber, one-keystroke), or **dangling** (`status = dangling`). These govern
@@ -955,8 +933,7 @@ constants are reasoned, not corpus-fit; they fail toward *confirm* (friction), n
 feeding the Path-1/Path-2 split and `S_position` is a Reconciliation-Engine detail, likewise stamped
 under `resolverVersion` for cross-device determinism.
 
-### 13.13 Sidecar JSON schema & id format **[DECIDED]**
-
+### 13.13 Sidecar JSON schema & id format
 The concrete on-disk shape of a node record and a sidecar, and the opaque stable-id format (§13.3).
 One rule governs every choice: **the committed Overlay carries identity, intent, and content
 *fingerprints* — never verbatim note bytes** (§13.1, §10.2), and **everything derivable from Tier 0 +
@@ -1047,8 +1024,7 @@ place (id unchanged → position unchanged); a new reference inserts a `link_…
 position (random ids scatter, so concurrent adds on two devices rarely land adjacent → 3-way-mergeable,
 §13.15); volatile ranges never appear here at all.
 
-### 13.14 Backlinks panel UX **[DECIDED]**
-
+### 13.14 Backlinks panel UX
 Detailing §13.9's backlinks projection. **One Tier-2 projection, two keyboard front-ends** (§8): a
 panel and a minibuffer command read the same reactive source, so they can never disagree; both are
 current-note-scoped and rebuild from Tiers 0+1.
@@ -1123,8 +1099,7 @@ promote, `/` filter, `s` sort, `c` context density, `u` toggle-unlinked, `L`/`U`
 `fuzzy_mentions`, `min_mention_length`, `mention_stopnames`, `sort`, `snippet_max_chars`,
 `peek_debounce_ms`, `promote_confirm`); sidecars stay JSON (§13.8).
 
-### 13.15 Git posture — the additive layer **[DECIDED]**
-
+### 13.15 Git posture — the additive layer
 Detailing §13.6/§13.7's promise that Git *strengthens* re-anchoring and rename detection but is
 **never required for correctness.** One invariant carries the section: **Git is never in the
 correctness path.**
