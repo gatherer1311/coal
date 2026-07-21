@@ -9,6 +9,12 @@ quickly once building begins.
 Legend: `[ ]` open · `[~]` in progress. (Decided items don't get a checkbox here — they move to
 `SPEC.md` and leave this file.)
 
+**Where things live (one item, one home).** *Design and planning* items live here and flow into
+`SPEC.md`. *Build tasks and bugs* — concrete implementation work with a clear done-state — are tracked
+as **GitHub Issues under the `v1.0` milestone**, not mirrored here; PRs close them with `closes #N`.
+Issues start once implementation begins. The planning backlog is deliberately **not** duplicated into
+issues (design decisions close by ratification into `SPEC.md`, not by a PR).
+
 ---
 
 ## Open decisions (settle before the affected area is built)
