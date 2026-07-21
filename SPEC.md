@@ -442,10 +442,56 @@ a live-memory or root-level attacker**, and the Secret-Service cache trades some
 (the key's safety becomes the login session's safety) for convenience. Encryption is Coal's default
 operating mode, not an ideological, un-disableable fortress.
 
-_(Remaining detail-level items — a recovery-key backstop, exact wrap-KDF parameters, the caching
-default posture, the on-disk naming scheme's interaction with §13.13 sidecar mirroring, the concrete
-merge-driver/textconv spec, and fully reconciling §13.15's Overlay-merge defenses with an encrypted
-Overlay — are tracked in `TODO.md`.)_
+_(The **recovery-key backstop** is settled in §10.4. Remaining detail-level items — exact wrap-KDF
+parameters, the caching default posture, the on-disk naming scheme's interaction with §13.13 sidecar
+mirroring, the concrete merge-driver/textconv spec, and fully reconciling §13.15's Overlay-merge
+defenses with an encrypted Overlay — are tracked in `TODO.md`.)_
+
+### 10.4 Recovery key **[DECIDED]**
+
+The §10.3 key model makes the passphrase the **sole** gate on the vault identity, and §10.2 puts real
+local data behind it — so a forgotten passphrase is otherwise **permanent, total loss of every note.**
+Coal's backstop is a **recovery key**, generated **by default** at vault creation but a **default, not
+a requirement** (the §9 house rule) — the opt-out is real and mandatory (below). No escrow, no server;
+the §10.3 zero-knowledge posture is preserved.
+
+**Mechanism — a second `age` stanza.** `age` is natively multi-recipient, so the wrapped
+vault-identity file carries a **second unwrapping stanza** beside the scrypt-passphrase one: a random
+**X25519 recovery recipient** wrapping the *same* vault key. **Either** the passphrase **or** the
+recovery identity unwraps the vault. Coal stores only the recovery **public recipient** (already inside
+that committed file); it **never stores the recovery secret** — not in the repo, and **deliberately not
+in the GNOME Secret Service** (§10.3), since caching it would bind recovery to one device and defeat
+its purpose: recovery must work from a **fresh clone with only the repo plus the user's kit**. The
+recovery key is a **standard `age` identity**, so `age -d -i recovery.txt <wrapped-identity>.age`
+recovers the vault with Coal entirely absent — the same portability floor as §10.3. No bespoke crypto.
+
+**Emergency Kit & creation.** On generation Coal presents a **one-time Emergency Kit**: the recovery
+key (`AGE-SECRET-KEY-1…`), the vault name/id, the exact CLI recovery command, and a plain warning that
+*anyone holding this key can decrypt the vault without the passphrase — store it offline.* Flow: mint →
+**Print / Download / Copy** → confirm *"I've saved it"* → continue. The gate is **soft** (an informed
+confirmation, not an un-skippable wall), consistent with the opt-out.
+
+**Recovery, rotation, removal.** *Recover:* the unlock screen offers *"Forgot passphrase? Use recovery
+key"* → paste the identity → Coal unwraps the vault and **forces a new passphrase** (re-wrapping the
+scrypt stanza with a fresh KEK), then **offers** (does not force) minting a fresh recovery key, since
+the old one may be the reason for recovery. *Rotate / remove:* each is one small re-wrap of the
+identity file (per §10.3's "rotation re-wraps one small key") — rotate swaps the recovery stanza,
+remove drops it entirely.
+
+**Opt-out — real and reversible.** The opt-out lives in **two** places: at creation, a clear
+*"Skip — no recovery key"* path (behind one informed "no way back from a forgotten passphrase"
+confirmation); and **forever after**, full removability in Settings → Security — a user who dislikes
+recovery keys returns to single-secret, and a user who skipped can add one later. Nobody is stuck with
+one; nobody who wants one is locked out of adding it.
+
+**Honest boundary.** A recovery key is a **second full-power credential**: it trades the
+catastrophic-loss risk for a wider key-exposure surface (two secrets can each unlock everything). That
+trade is exactly why it is **default-on-but-removable** rather than mandatory, and it is stated plainly
+per §10.3's honest-boundary posture.
+
+**v1 scope.** Exactly **one** age-identity recovery key. `age`'s native **N-recipients** (multiple
+kits — printed, password-manager, a trusted third party) and typage's **FIDO2/WebAuthn** recipient
+(recover by touching a hardware key) are supported **extension points**, not v1.
 
 ---
 
@@ -1202,3 +1248,4 @@ wrong resolve, never a silent mis-point, never data loss.
 | 2026-07-21 | Official (first-party) plugins (§8) + default theme **"Sublime"** (§8.1): Coal ships trusted first-party "official plugins" over a minimal core (Obsidian's "core plugins" model), leaning into the extensible substrate; the bundled default theme is **Sublime** — dark-black background with sublime-green accents, delivered through the normal theme path | Embraces Coal's Emacs-derived extensibility (§8) — as much as reasonable lives as official plugins over a small core; the default theme is a concrete visual anchor (values produced with the pre-build visual design). The concrete core-vs-plugin split stays open in `TODO.md`. |
 | 2026-07-21 | Plugin management & enablement (§8.3): installed plugins + enabled/disabled state live in a declarative `.coal/config/PLUGINS.<ext>` file (TOML per §9), managed both by editing the file and from the Settings UI (which reads/writes the file, no shadow store §9); explicit `enabled`/`disabled` values; fixes `.coal/config/` as the config home | Applies §9 (plain-text source of truth, GUI-as-front-end) to plugins; explicit enablement lets a plugin be installed-but-disabled; third-party enable still routes through §8.2 consent. |
 | 2026-07-21 | Data model settled (§13.10): a note is a **document with addressable sub-blocks, not an outliner**; core carries no outliner model; a fuller outliner ships as an **official plugin** layered over the plain-text document (never altering the core model or on-disk format §13.1) | Resolves the open data-model question in `TODO.md`: keep the core minimal and portable (§13.1), and deliver outlining as opt-in first-party extensibility (§8) rather than a core commitment; the plugin's own design remains open. |
+| 2026-07-21 | Recovery-key backstop (§10.4): a **recovery key generated by default** at vault creation — a default, not a requirement, with a **real, reversible opt-out** (skip at creation + full removability in Settings). Mechanism = a **second `age` stanza** (random X25519 recovery recipient) on the wrapped vault identity, so either the passphrase or the recovery key unwraps it; Coal stores only the public recipient and **never the recovery secret** (not the repo, not the GNOME Secret Service). One-time **Emergency Kit** (standard `AGE-SECRET-KEY-…`, CLI-recoverable); recovery **forces a new passphrase** and offers a fresh key; rotate/remove are one small re-wrap. v1 = one key; N-recipients + FIDO2/WebAuthn are extension points | §10.3 makes the passphrase the sole gate and §10.2 puts real local data behind it, so a forgotten passphrase is otherwise permanent total loss — too sharp an edge to leave as the silent default for a notes app. `age`'s native multi-recipient support delivers the escape hatch with no bespoke crypto and no escrow, keeping zero-knowledge intact; default-on protects the common case while removability honors the §9 "default, not requirement" rule and contains the second-full-power-credential trade-off. |
