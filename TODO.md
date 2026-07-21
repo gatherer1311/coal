@@ -76,17 +76,31 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done (move the decided outcome 
 - [ ] Still open: whether notes additionally carry a full **outliner / block** model, and the on-disk
   representation beyond "plain-text files."
 
-### Encryption mechanism (requirement is decided in SPEC §10; the scheme is not)
-- [ ] **Threat model** — host-confidentiality only vs also local-at-rest (the "unlock at start / re-lock on close" intent).
-- [ ] **Key derivation** — candidates: `age` (X25519 + ChaCha20-Poly1305), **`scrypt`** (only the
-  *KDF* in Obsidian Sync's E2EE — the actual cipher is AES-256-GCM, and core Obsidian encrypts nothing
-  at rest; full breakdown in [`reference/18`](reference/18-obsidian-encryption.md)), Argon2. Pick during design.
-- [ ] **Approach** — app-managed decrypt-to-memory vs a Git clean/smudge filter vs encrypted-remote-only.
-  Full survey of the tooling/architecture space (file-level filter · whole-repo transport ·
-  filesystem-layer, plus the in-process `age`/`typage` path) in
-  [`reference/19`](reference/19-encryption-in-git.md).
-- [ ] **Key management + unlock UX** at start, and exactly what "re-lock on close" guarantees.
-- [ ] **Git diff/merge strategy over ciphertext** — a local decrypt filter (textconv) can restore readable diffs for the key-holder; line-level 3-way merge stays limited (acceptable for single-user multi-device sync).
+### Encryption mechanism — **core scheme DECIDED → `SPEC.md` §10.3** (grounded by [`reference/18`](reference/18-obsidian-encryption.md) + [`reference/19`](reference/19-encryption-in-git.md))
+- [x] **Threat model** — content encrypted before it leaves the machine **and** local at-rest, both from
+  **one** mechanism; metadata (names/structure/sizes/history) leak accepted (mitigable via a private/self-hosted remote). → §10.3.
+- [x] **Primitive / KDF** — `age` (ChaCha20-Poly1305 / X25519) via **`typage`** (in-process TS); vault key
+  passphrase-wrapped via an `age` scrypt-passphrase stanza. → §10.3.
+- [x] **Approach** — **app-managed decrypt-to-memory**: ciphertext `age` files at rest, Git versions opaque
+  blobs (no clean/smudge filter), re-encrypt only on change. → §10.3.
+- [x] **Key management + unlock UX** — single passphrase-wrapped vault X25519 identity (Bitwarden hierarchy);
+  onboarding = clone + passphrase; unlock holds the key in-process, **lock = purge**; optional GNOME
+  Secret-Service cache. → §10.3.
+- [x] **Git diff/merge over ciphertext** — `textconv` for readable diffs + a decrypt→3-way→re-encrypt merge
+  driver (transcrypt as blueprint); single-user multi-device target. → §10.3.
+- Remaining **detail items** (design decided; each needs a concrete spec before code):
+  - [ ] **Recovery-key backstop** — with local at-rest back in, a forgotten passphrase = total loss; decide
+    whether/how to mint a random recovery key (age-keygen-style) as an escape hatch. **(Important.)**
+  - [ ] **Wrap-KDF parameters** — clamped scrypt work factor (leaning age-standard, CLI-recoverable) vs Argon2id; pin the minimum.
+  - [ ] **Caching default posture** — seamless (Secret-Service, auto-unlock at login) vs conservative
+    (passphrase-per-launch); plus vault-timeout defaults.
+  - [ ] **On-disk naming** — the `note.md.age` scheme and how logical `.md`/`.org` names map to ciphertext
+    files, incl. interaction with §13.13 sidecar-path mirroring.
+  - [ ] **Merge-driver / `textconv` concrete spec** and the conflict-resolution UX.
+  - [ ] **§13.15 reconciliation** — fully reconcile the Overlay-merge defenses now that the Overlay is
+    encrypted (driver required + decrypt/re-encrypt; plaintext line-merge floor removed).
+  - [ ] **Import/export design** — the four functions (Coal-bundle / plaintext, each direction) + the
+    standard-`age` floor; plaintext-export destination + warning.
 
 ## Documentation & repo
 
