@@ -19,11 +19,10 @@ issues (design decisions close by ratification into `SPEC.md`, not by a PR).
 
 ## Open decisions (settle before the affected area is built)
 
-- [ ] **v1 feature surface** — which Obsidian-like surfaces ship first (backlinks panel, tags, search, daily notes, graph, …).
 - [~] **Core vs official-plugin split** — decide which of the remaining features are *core Coal* and
   which ship as **official (first-party) plugins** (§8). The **registry** of decided official plugins
   is [`PLUGINS.md`](PLUGINS.md). Still to classify: the full code-editor mode, the Zettelkasten
-  plugin, and spell/grammar check (all in *Feature backlog*, below).
+  plugin, spell/grammar check, and **templates** (all candidates for official-plugin packaging).
 - [ ] **Graph / visual rendering library** — **still deferred**; the block is the graph *view*
   scope, not the rendering tech (view depends on the deferred linking system and data model). The
   rendering *direction* is now pre-qualified in [`reference/17`](reference/17-graph-rendering-options.md):
@@ -39,13 +38,30 @@ issues (design decisions close by ratification into `SPEC.md`, not by a PR).
   `d3-force` + Canvas 2D stays the Wayland-safe phase-1); (b) WebGL-under-Wayland (Electron) needs
   verifying for it. Commercial/source-available engines (KeyLines/ReGraph, yFiles, Ogma, GoJS,
   Graphistry, Neo4j NVL) stay excluded by the §11 permissive-OSS posture. Only the substrate
-  **commit** waits on scale from the graph-view scope (→ *v1 feature surface*, above;
-  node-granularity §13.2 + edge-definition §13.1).
-- [ ] **Embeds / transclusion** (`![[…]]`) inline-rendering scope — linking is decided (§13); whether/when
-  embeds render inline (with recursion / depth-cap handling) is an open v1-surface item (§7.2 keeps them
-  literal for now).
+  **commit** waits on scale from the graph-view scope (a confirmed v1 surface, SPEC §14 roster, whose
+  own design is still open; node-granularity §13.2 + edge-definition §13.1).
+- [ ] **Embeds / transclusion** (`![[…]]`) inline-render design — a **confirmed v1 surface** (§14 roster);
+  linking is decided (§13). Open: the inline-render design itself — recursion / depth-cap handling, the
+  reveal model, and when it supersedes the literal-for-now display (§7.2). Its own design session.
 
 ## Deferred design work (intentionally postponed — each gets its own design session)
+
+### v1 surface deep-design (roster settled in SPEC §14 — each surface its own session)
+- [ ] **Workspace-shell detail** — split/tab keybindings, drag behavior, and workspace/session
+  persistence (which windows/notes/panels reopen on launch, stored per §9). The shell *shape* is decided
+  (§14.1); this is the interaction + persistence design.
+- [ ] **Full-text search** — engine (ripgrep-backed vs in-process index), query syntax (plain / regex /
+  operators), scope (content + names + tags), indexing/perf, and the results surface (minibuffer-driven +
+  panel). Keyboard-first per §6.
+- [ ] **Tags** — inline `#tag` + frontmatter `tags:` indexing (Tier-2, from user bytes only §13.1), the
+  tag index/pane, autocomplete, and click-to-search. Distinct from the Overlay-internal `kindTag`.
+- [ ] **Daily notes** — the dated-note command, folder + date-format + template config, and
+  open-on-launch behavior. Depends on **Templates**.
+- [ ] **Templates** — plain-text template files in the vault, variable substitution (date / title /
+  cursor, and what else), and core-vs-plugin placement (proposed official plugin, `PLUGINS.md`).
+
+_(The two small roster additions — **outline / TOC panel** and **word-count / stats** — need no design
+session; they become build tasks once building begins.)_
 
 ### Outliner (official plugin) — design
 - [ ] The official outliner plugin's own design: its interaction model, how (or whether) it persists
@@ -104,7 +120,8 @@ Owner-requested surfaces captured for design. Each needs its own design pass bef
 - [ ] **Visual design target** — before implementation begins, produce a visual design (by **Claude
   Design**) so there is a concrete visual target to build toward, rather than designing UI ad hoc
   during the build. Covers the default **"Sublime"** theme (dark black + sublime-green accents,
-  `SPEC.md` §8.1) and the core surfaces (editor, minibuffer, panels §13.9/§13.14, settings). Gate:
+  `SPEC.md` §8.1) and the v1 surfaces (the §14 roster — editor, workspace shell §14.1, minibuffer,
+  Links/Dangling panels §13.9/§13.14, outline & status-bar, settings). Gate:
   building starts against an agreed visual target.
 
 ## Build tasks

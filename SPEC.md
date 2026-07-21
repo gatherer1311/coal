@@ -233,8 +233,10 @@ in Live Preview, consistent with "no render mode."
 - **Math** (`$…$`, `$$…$$`, Org `\(…\)` / LaTeX fragments) — render-only typesetting, out of
   near-term scope (§7).
 - **Mermaid / diagrams** — render-only, out of near-term scope (§7).
-- **Embeds / transclusions** (`![[…]]`) — stay literal; the linking & index system they depend on is
-  decided (§13), but whether embeds ever render inline is an open v1-surface item (`TODO.md`).
+- **Embeds / transclusions** (`![[…]]`) — **literal for now.** Inline rendering is a **committed v1
+  surface** (§14 roster) — the linking & index system they depend on is decided (§13); what remains is
+  the *design* (recursion / depth-cap handling, the reveal model, when it supersedes the literal
+  display), tracked as its own session (`TODO.md`).
 - **Fenced code blocks** — shown as literal source with syntax highlighting only; never executed or
   rendered (no Babel execution §5, no render mode §7). Highlighting is styling over literal text.
 - Other render-only artifacts (PDF, slides, raw HTML block rendering) — out of near-term scope (§7).
@@ -744,9 +746,11 @@ links surface in the panels (§13.9).
   settings/housekeeping surface — entered on purpose when the user is tidying, rather than cluttering
   the working view — with **keyboard-first `M-x` command twins** (e.g. list / jump-to-next dangling)
   per §6.
-- **Backlinks** are a Tier-2 derived projection (invert every sidecar's forward references), split
-  into **Linked** and **Unlinked mentions** (the latter matched on note title/alias text, since ids
-  are never user-visible). Panel detail is specified in §13.14.
+- **The Links panel** shows the current note's connections in both directions: **outgoing** ("Links
+  to" — a read of the note's own sidecar forward references) and **incoming** ("Linked from" — the
+  backlinks projection: invert every sidecar's forward references, split into **Linked** and **Unlinked
+  mentions**, the latter matched on note title/alias text since ids are never user-visible). Panel
+  detail — including the internal-link **hover preview** — is specified in §13.14.
 
 ### 13.10 Relationship to the data model
 The data model is settled: a note is a **document with addressable sub-blocks**, **not an outliner**.
@@ -1024,22 +1028,27 @@ place (id unchanged → position unchanged); a new reference inserts a `link_…
 position (random ids scatter, so concurrent adds on two devices rarely land adjacent → 3-way-mergeable,
 §13.15); volatile ranges never appear here at all.
 
-### 13.14 Backlinks panel UX
-Detailing §13.9's backlinks projection. **One Tier-2 projection, two keyboard front-ends** (§8): a
-panel and a minibuffer command read the same reactive source, so they can never disagree; both are
-current-note-scoped and rebuild from Tiers 0+1.
+### 13.14 Links panel UX — bidirectional (outgoing + backlinks)
+The right-dock **Links panel** shows the current note's connections in **both directions**: an
+**Outgoing — "Links to"** section (what this note references) above the **Incoming — "Linked from"**
+groups (who references this note — the backlinks projection detailed below). Both directions are
+current-note-scoped, rebuild from Tiers 0+1, and each offers **two keyboard front-ends** (§8) — a panel
+and a minibuffer command over one reactive source, so they can never disagree. The leaf id
+`coal.backlinks` and the `backlinks-*` command family are retained for continuity; the outgoing
+direction adds a section and a narrow, not a separate surface.
 
 **Placement.** `coal.backlinks` is a right-dock leaf, **separate from** the `coal.dangling` leaf
-(§13.9); the default layout stacks Backlinks above Dangling (co-visible), but they are independent.
+(§13.9); the default layout stacks the Links panel above Dangling (co-visible), but they are independent.
 Their conditionality differs by design: Dangling is *conditional-on-content* — an alarm that
-auto-surfaces only when the current note has unresolved outbound links; Backlinks is
-*conditional-on-invocation* (`auto_show = false`) — "who points here?" is a reference you reach for,
-revealed with `backlinks-show` and thereafter persistent per workspace. The two directions are disjoint
-(Backlinks = inbound; Dangling = outbound-broken), so nothing is double-counted. The one seam: an
-inbound **block-precise** reference whose target block was deleted from *my* note shows in *my*
-Backlinks as an amber-degraded entry, and separately as a *Broken* entry in the **source** note's own
-Dangling panel — because that defect lives in the source's sidecar (§13.3 ownership). The default
-instance follows the active note; `backlinks-pin` mints a title-locked instance.
+auto-surfaces only when the current note has unresolved outbound links; the Links panel is
+*conditional-on-invocation* (`auto_show = false`) — outgoing and inbound references are things you reach
+for, revealed with `backlinks-show` and thereafter persistent per workspace. The three surfaces are
+mutually disjoint — **Links to** = outbound-*resolved*, **Linked from** = inbound, **Dangling** =
+outbound-*broken* — so nothing is double-counted. The one seam: an inbound **block-precise** reference
+whose target block was deleted from *my* note shows in *my* **Linked from** as an amber-degraded entry,
+and separately as a *Broken* entry in the **source** note's own Dangling panel — because that defect
+lives in the source's sidecar (§13.3 ownership). The default instance follows the active note;
+`backlinks-pin` mints a title-locked instance.
 
 **Two groups, fixed order.**
 
@@ -1066,7 +1075,16 @@ instance follows the active note; `backlinks-pin` mints a title-locked instance.
   the full automaton; a note's *name-set* change rescans the corpus for that note's patterns alone —
   never a full re-derive.
 
-**Layout.** Group headers carry live totals (`Linked · 7 (2 broken)`, `Unlinked mentions · 4`); within
+**Outgoing — "Links to."** Above the two incoming groups sits the outgoing direction: the current
+note's own **resolved** forward `link` nodes (§13.13), grouped by target note and ordered by document
+offset. It is the cheap mirror of *Linked* — a read of the note's **own** sidecar, no inversion, ready
+on open — with **no Unlinked analogue** (outgoing links are authored, never inferred). Each entry carries
+the same §13.5 block-precision sigil, last-known target text, and `RET` jump / `SPC` peek behavior as an
+incoming entry. **Broken or ambiguous outgoing links are absent here by construction** — those are the
+Dangling panel's alarm (§13.9) — so "Links to" is a clean list of live connections. The sole mutating
+action, **promote** (below), stays *incoming*-only.
+
+**Layout.** Group headers carry live totals (`Links to · 5`, `Linked · 7 (2 broken)`, `Unlinked mentions · 4`); within
 a group, entries are grouped by source note (collapsible, count-badged) and ordered by document offset;
 source groups sort by `recency` (default), `count`, or `title` (cycled with `s`). Each entry shows the
 source name, a **raw** context snippet (never normalized; single line, `snippet_max_chars = 120`,
@@ -1076,7 +1094,10 @@ trailing `⟨block removed: "…"⟩` or `⟨block ambiguous⟩`). Designed empt
 
 **Interactions.** `RET` **jump-to** (reuse the active leaf; `C-RET` splits) — caret to the anchor,
 brief flash. `SPC` **peek** — a strictly read-only, throwaway CodeMirror preview around the anchor that
-never touches the byte-for-byte save path, debounced, reverted on `Esc`. `p` **promote unlinked
+never touches the byte-for-byte save path, debounced, reverted on `Esc`. **This peek is also the editor
+hover-preview engine:** hovering an **internal** link (`[[wikilink]]` or an in-vault `[…](path)`) in Live
+Preview or Source pops the identical read-only throwaway preview of its target, debounced; **external**
+schemes (`http(s)`, `mailto`, …) never preview. `p` **promote unlinked
 mention → link** — the **only** note-mutating action in either panel, obeying §13.1 exactly: it writes
 a **portable, zero-identity** wikilink into the **source** note (never the target), replacing the
 mention span with the bytes the user would type — `[[Target]]` when the text equals the target's
@@ -1092,9 +1113,10 @@ lives only in the §13.9 housekeeping surface.
 registry — `M-x`-visible, rebindable, `isAvailable()`-gated — with the panel keymap and the minibuffer
 `backlinks-jump` (the same entry list rendered with live read-only preview and narrowing to
 linked/unlinked/broken) as front-ends onto it; the mouse is additive. Default links prefix `C-c l`:
-`b` show · `d` dangling-show · `j` jump · `u` jump-unlinked · `p` promote-at-point. Panel-local:
-`C-n`/`C-p` entry, `M-n`/`M-p` group, `RET`/`C-RET` visit, `SPC` peek, `TAB`/`S-TAB` fold, `p`/`P`
-promote, `/` filter, `s` sort, `c` context density, `u` toggle-unlinked, `L`/`U` narrow, `g` refresh,
+`b` show · `d` dangling-show · `j` jump · `u` jump-unlinked · `o` jump-outgoing · `p` promote-at-point.
+Panel-local: `C-n`/`C-p` entry, `M-n`/`M-p` group, `RET`/`C-RET` visit, `SPC` peek, `TAB`/`S-TAB` fold,
+`p`/`P` promote, `/` filter, `s` sort, `c` context density, `u` toggle-unlinked, `L`/`U`/`O` narrow
+(linked / unlinked / outgoing), `g` refresh,
 `q` quit. A `[backlinks]` TOML block (§9) carries the knobs (`auto_show`, `unlinked_mentions`,
 `fuzzy_mentions`, `min_mention_length`, `mention_stopnames`, `sort`, `snippet_max_chars`,
 `peek_debounce_ms`, `promote_confirm`); sidecars stay JSON (§13.8).
@@ -1231,7 +1253,75 @@ wrong resolve, never a silent mis-point, never data loss.
 
 ---
 
-## 14. Decision log
+## 14. The workspace shell & v1 surface roster
+
+This section fixes the **complete set of user-facing surfaces that constitute Coal v1** and settles the
+**workspace shell** they live in. Under the owner-first, dogfooded-from-day-one audience (§15), "v1" is
+the bar at which the owner can switch to Coal for daily notes — so everything named in `SPEC.md` and
+`TODO.md` is on the v1 roadmap; there is **no deferred feature tier**. This is the roster of record;
+each heavy surface's deep design proceeds in its own session and lands as its own section, exactly as
+§13 did for linking.
+
+### 14.1 The workspace shell
+
+**Hybrid — a keyboard-first spine with first-class GUI chrome.** The keyboard spine (minibuffer open,
+window/buffer commands) is the source of truth; the tree and tabs are GUI front-ends onto it, visible by
+default. This honors §2 principle #4 (keyboard-first; mouse first-class where it wins) and §6 (one
+command substrate + minibuffer), while giving Obsidian switchers the chrome they expect.
+
+- **File-tree sidebar** — a **left**-dock leaf showing the vault's folder/file tree; **default-on**,
+  toggle-able by key and mouse; create / rename / move / delete files and folders. The **right** dock
+  stays reserved for the §13 contextual panels (Links §13.14, Dangling §13.9), so the two docks never
+  compete.
+- **Quick switcher** — the spine's file-open: fuzzy open-by-name/alias through the minibuffer
+  (`find-file`-style), an `M-x`-registered command with the standard minibuffer front-ends (§6/§8). The
+  tree is the mouse path; the quick switcher is the keyboard path. It matches over the same
+  `{ filename stem, first H1, aliases }` name set the backlinks scan uses (§13.14), each reduced through
+  the frozen normalizer (§13.11), so "find" and "link" agree on what a note is called.
+- **Windows as the split primitive** — frame layout is the Emacs **window** model: split (`C-x 2` /
+  `C-x 3`; Vim `:sp` / `:vsp`), move focus, balance, and close, each window showing one note. Mouse
+  drag-to-split is additive. Coal **does not** adopt a separate Obsidian-style "tab-group" abstraction —
+  a window already is the unit of layout, and a second one would double-model it.
+- **Tabs** — a **per-window** buffer strip (a tab-line) listing that window's open notes; **default-on**,
+  toggle-able; mouse-clickable and keyboard-cyclable. Tabs *belong to* a window; they are not an
+  independent layout primitive.
+
+**Deferred to the shell's own design session (`TODO.md`):** the exact split/tab keybindings and drag
+behavior, and **workspace/session persistence** — which windows, notes, and panels reopen on launch,
+stored as plain text per §9.
+
+### 14.2 The v1 surface roster
+
+The surfaces below **are** v1. Legend: *specced* = already ratified elsewhere in this document; *new* =
+ratified in this section; *own session* = on the v1 roadmap with its deep design tracked in `TODO.md`.
+
+- **Editor & command core** *(specced)* — Live Preview + Source (§7); command palette + unified
+  minibuffer, `M-x` / `M-:` / Vim `:` + `/` (§6, §8); Emacs & Vim keymaps (`PLUGINS.md`).
+- **Workspace shell** *(new, §14.1)* — file-tree sidebar; windows-as-split; per-window tabs; quick
+  switcher.
+- **Linking & knowledge** — wikilink navigation & resolution (§13.5, *specced*); the **Links panel**,
+  bidirectional (§13.14, *extended here*) — *Links to* (outgoing) + *Linked from* (Linked + Unlinked
+  mentions); the **Dangling / ambiguous-links** panel + vault housekeeping (§13.9, *specced*);
+  internal-link **hover preview** (§13.14, *new*); **graph view** (*own session*; renderer deferred,
+  `reference/17`); **embeds / transclusion** inline render (*own session*).
+- **PKM surfaces** — **full-text search** (*own session* — engine, query syntax, indexing); **tags** —
+  inline `#tag` + frontmatter `tags:`, tag index/pane, autocomplete, click-to-search (*own session*);
+  **daily notes** (*own session*; depends on templates); **templates** — plain-text template files in
+  the vault, basic variable substitution (date / title / cursor), likely an official plugin (*own
+  session*; `PLUGINS.md`); **outline / TOC panel** — a heading-tree of the current note, keyboard-
+  navigable (*new*); **word-count / stats** — a status-bar element (*new*).
+- **Also on the v1 roadmap, each tracked as its own `TODO.md` item** — spell check; full code-editor
+  mode; Zettelkasten; file recovery; undo; auto-save / commit / push; change app icons; the outliner
+  plugin (§13.10); and the encryption detail cluster (§10.3 / §10.4).
+
+**Deliberate boundary — note properties are edited as text.** Live Preview prettifies and reveals
+property/drawer lines (§7.1), so Coal ships **no separate GUI properties/frontmatter editor**: a form
+that writes the file for you is exactly the "hidden front-end that shadows the file" §2 forbids. Editing
+frontmatter is editing text, like any other line.
+
+---
+
+## 15. Decision log
 
 | Date       | Decision | Rationale |
 |------------|----------|-----------|
@@ -1278,3 +1368,4 @@ wrong resolve, never a silent mis-point, never data loss.
 | 2026-07-21 | Recovery-key backstop (§10.4): a **recovery key generated by default** at vault creation — a default, not a requirement, with a **real, reversible opt-out** (skip at creation + full removability in Settings). Mechanism = a **second `age` stanza** (random X25519 recovery recipient) on the wrapped vault identity, so either the passphrase or the recovery key unwraps it; Coal stores only the public recipient and **never the recovery secret** (not the repo, not the GNOME Secret Service). One-time **Emergency Kit** (standard `AGE-SECRET-KEY-…`, CLI-recoverable); recovery **forces a new passphrase** and offers a fresh key; rotate/remove are one small re-wrap. v1 = one key; N-recipients + FIDO2/WebAuthn are extension points | §10.3 makes the passphrase the sole gate and §10.2 puts real local data behind it, so a forgotten passphrase is otherwise permanent total loss — too sharp an edge to leave as the silent default for a notes app. `age`'s native multi-recipient support delivers the escape hatch with no bespoke crypto and no escrow, keeping zero-knowledge intact; default-on protects the common case while removability honors the §9 "default, not requirement" rule and contains the second-full-power-credential trade-off. |
 | 2026-07-21 | Encryption posture (§10.2 / §2 principle #3): encryption at rest walked back from a hard **requirement** to a **first-class, built-in, opt-in core feature — off by default**, enabled per vault; **plaintext vaults are equally first-class** (a developer pushes readable files to a company repo; hassle-averse users skip it). Founding principle #3 softened from "private by default" → "privacy built in, opt-in"; §1 vision updated. The §10.3/§10.4 **mechanism is unchanged**, and encryption **stays core** (not a plugin). Adopts a standing guardrail (§8.2): the most dangerous capabilities — storage-codec / physical-representation, key custody, startup gating, ambient host authority — are **first-party-only, never third-party-consentable**; a pluggable storage seam is deferred until a genuine second consumer exists. | Optionality (not plugin-ness) was the real goal, and it is met without exposing the app's most dangerous seams to community plugins or building a general storage seam speculatively for one consumer; keeping encryption core changes the just-ratified mechanism the least. The guardrail keeps Coal's private-when-enabled posture from ever hinging on users judging un-judgeable "control all your files / hold your keys" consent dialogs. |
 | 2026-07-21 | Interaction model (§6 / §2 principle #4): **Emacs *and* Vim keymaps both ship out of the box**, chosen at **first run** (no baked-in default), declaratively switchable (§9), with **full feature parity** (every command bound in both, each modeled on the closest counterpart in its editor) and **fully-supported Vim modes**. Delivered as **bundled official plugins** over a core command-substrate + minibuffer + **input-mode seam**; the **minibuffer is unified** — Emacs `M-x`/`M-:`, Vim `:` ex line + `/` search + mode indicator. Founding principle #4 widened from "Emacs keybindings" → "Emacs and Vim keymaps"; §1 vision widened to "Emacs or Vim." Registered in `PLUGINS.md`. | Serves the widest editor audience (the "VSCode/Obsidian/Emacs/Vim in one" aim) on Coal's extensible substrate. The input-mode seam is *safe* (touches no files, keys, or network) and has **two real consumers from day one**, so — unlike the storage seam — it sits on the community-open side of the §8.2 guardrail and is justified now, not speculatively. |
+| 2026-07-21 | v1 surface roster + workspace shell (§14): everything in `SPEC.md` + `TODO.md` is v1 (no deferred tier). The **workspace shell** is **hybrid** — a keyboard-first spine (minibuffer open; Emacs **windows** as the sole split primitive; per-window **tabs**) with a **left** file-tree sidebar and a **quick switcher**, all default-on; the **right** dock stays the §13 panels. The roster **adds**: the bidirectional **Links panel** (§13.14 extended — *Links to* outgoing = own-sidecar read, above *Linked from*; Dangling stays the outbound-broken alarm, so Links-to / Linked-from / Dangling are three disjoint surfaces), an internal-only **hover preview** (reuses the §13.14 peek engine), an **outline/TOC panel**, a **word-count** status element, the **quick switcher**, and **templates** (proposed official plugin, `PLUGINS.md`). Deep design of graph, embeds, search, tags, daily notes, templates, and the shell's keybindings/session-persistence each spin out as their own `TODO.md` sessions. Deliberate boundary: **no GUI properties editor** — frontmatter is edited as text (§7.1 / §2). Obsidian's separate tab-group abstraction is rejected (a window already models layout). | Owner-first dogfooding makes "v1" = "the owner can live in it," so the surface set is enumerated once as a build target rather than discovered ad hoc; the hybrid shell honors keyboard-first (§2 #4) without denying Obsidian switchers the tree/tabs. Surfacing connections **both** directions is the point of a PKM tool — the app should show the graph, not make you reconstruct it by scrolling — while the disjoint Links-to / Linked-from / Dangling split preserves §13.14's no-double-count invariant. Hover-preview and quick-switcher reuse existing mechanisms (peek §13.14; the §13.11 name set) rather than new machinery. |
