@@ -66,7 +66,9 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done (move the decided outcome 
 
 ### Encryption mechanism (requirement is decided in SPEC §10; the scheme is not)
 - [ ] **Threat model** — host-confidentiality only vs also local-at-rest (the "unlock at start / re-lock on close" intent).
-- [ ] **Key derivation** — candidates: `age` (X25519 + ChaCha20-Poly1305), **`scrypt`** (Obsidian uses scrypt for its encryption paths — `reference/16`), Argon2. Pick during design.
+- [ ] **Key derivation** — candidates: `age` (X25519 + ChaCha20-Poly1305), **`scrypt`** (only the
+  *KDF* in Obsidian Sync's E2EE — the actual cipher is AES-256-GCM, and core Obsidian encrypts nothing
+  at rest; full breakdown in [`reference/18`](reference/18-obsidian-encryption.md)), Argon2. Pick during design.
 - [ ] **Approach** — app-managed decrypt-to-memory vs a Git clean/smudge filter vs encrypted-remote-only.
 - [ ] **Key management + unlock UX** at start, and exactly what "re-lock on close" guarantees.
 - [ ] **Git diff/merge strategy over ciphertext** — a local decrypt filter (textconv) can restore readable diffs for the key-holder; line-level 3-way merge stays limited (acceptable for single-user multi-device sync).
