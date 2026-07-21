@@ -10,6 +10,7 @@
 protected="refs/heads/main"
 
 # stdin: <local_ref> <local_sha> <remote_ref> <remote_sha>
+has_update=0
 while read -r local_ref local_sha remote_ref remote_sha; do
   [ -z "$remote_ref" ] && continue
   if [ "$remote_ref" = "$protected" ]; then
@@ -17,7 +18,12 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     echo "          (main is PR-only + CI-gated; GitHub enforces this too.)" >&2
     exit 1
   fi
+  # An all-zero local sha means this ref is being deleted, not updated.
+  case "$local_sha" in *[!0]*) has_update=1 ;; esac
 done
+
+# Nothing being added (e.g. a `--delete` push): no need to run the checks.
+[ "$has_update" = "0" ] && exit 0
 
 # Mirror CI locally when deps are present.
 if [ -x node_modules/.bin/tsc ]; then
