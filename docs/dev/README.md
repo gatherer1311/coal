@@ -9,4 +9,5 @@ Start with the authoritative design in [`../../SPEC.md`](../../SPEC.md).
 
 ## Contents
 
-_(nothing yet — architecture and extension docs are added as the corresponding systems are built)_
+- [Overlay identity core](overlay-identity.md) — the pure normalizer / id / canonical-JSON /
+  simhash / neighbors / resolver primitives behind stand-off identity (`SPEC.md` §13).
