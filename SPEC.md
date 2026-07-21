@@ -1,7 +1,7 @@
 # Coal — Design Specification
 
 > **Status:** Living document. This is the authoritative source the builder pulls from.
-> **Last updated:** 2026-07-20
+> **Last updated:** 2026-07-21
 >
 > Coal is a Linux-native text editor with the *hands of Emacs* (central minibuffer,
 > Emacs keybindings, deep hackability) and the *head of Obsidian* (plain-text notes,
@@ -11,14 +11,9 @@
 
 ## 0. How to read this document
 
-**`SPEC.md` records only decided items** — ratified design decisions and deliberate scope
-boundaries. Anything still open, pending, or in-progress lives in [`TODO.md`](TODO.md), not here.
-
-Status tags used below:
-
-- **[DECIDED]** — ratified. The builder may implement it.
-- **[DEFERRED]** — a deliberate decision to postpone. **Do not implement**, and do not pre-empt
-  the outcome by building around a presumed answer. Open sub-questions are tracked in `TODO.md`.
+**`SPEC.md` records only ratified decisions** — final design decisions and deliberate scope
+boundaries, each tagged **[DECIDED]**. Anything still open, pending, or in-progress lives in
+[`TODO.md`](TODO.md), not here.
 
 **On the `reference/` directory.** Those files are *research and priors only* — a record of how
 Emacs tooling, Org, and other PKM apps solved problems, plus notes from a prior, abandoned
@@ -193,15 +188,15 @@ in Live Preview, consistent with "no render mode."
 - **Math** (`$…$`, `$$…$$`, Org `\(…\)` / LaTeX fragments) — render-only typesetting, out of
   near-term scope (§7).
 - **Mermaid / diagrams** — render-only, out of near-term scope (§7).
-- **Embeds / transclusions** (`![[…]]`) — the linking & index system they depend on is now decided
-  (§14), but embeds themselves remain out of near-term scope pending a v1-surface decision (§14.11).
+- **Embeds / transclusions** (`![[…]]`) — stay literal; the linking & index system they depend on is
+  decided (§13), but whether embeds ever render inline is an open v1-surface item (`TODO.md`).
 - **Fenced code blocks** — shown as literal source with syntax highlighting only; never executed or
   rendered (no Babel execution §5, no render mode §7). Highlighting is styling over literal text.
 - Other render-only artifacts (PDF, slides, raw HTML block rendering) — out of near-term scope (§7).
 
 > **Note on wikilinks.** The reveal/hide *mechanism* above is ready for link-like constructs; the
 > concrete rendering of `[[wikilinks]]` — including the Live-Preview decoration that surfaces a
-> block link's precision (§14.5) — is specified with the linking system in §14.
+> block link's precision (§13.5) — is specified with the linking system in §13.
 
 ---
 
@@ -307,13 +302,6 @@ One substrate, several front-ends.
 - **Scope:** user notes/content. Configuration (§9) stays plaintext-versioned so it remains
   shareable and declarative.
 
-### 10.3 Encryption mechanism **[DEFERRED]**
-
-The exact scheme is **undecided and must not be implemented until ratified**. It is as
-consequential as the linking system and is entangled with the Git diff/merge strategy and the
-(deferred) data model. Open sub-questions — threat model, key derivation, approach, key
-management, diff/merge over ciphertext — are tracked in `TODO.md`.
-
 ---
 
 ## 11. License **[DECIDED]**
@@ -340,31 +328,14 @@ management, diff/merge over ciphertext — are tracked in `TODO.md`.
 
 ---
 
-## 13. Deferred by decision
+## 13. Linking, identity & the Overlay **[DECIDED]**
 
-Most items here remain postponed — **do not implement, and do not design around a presumed
-outcome.** §13.1 has since been ratified and is kept below as a pointer. Open sub-questions live in
-`TODO.md`.
-
-- **13.1 Linking & index system** — **[DECIDED] — ratified in §14.** Wiki-style links, backlinks,
-  block references, and the index/derivation that powers them are specified there (stand-off
-  identity + the committed Overlay). Retained here as a pointer only.
-- **13.2 Data model (document vs block)** — **[DEFERRED — partially constrained by §14.10].**
-  Whether notes additionally carry an outliner/block model, and the on-disk representation beyond
-  "plain-text files." §14 fixes that a note is a *document with addressable sub-blocks*; the fuller
-  outliner question is still open.
-- **13.3 Encryption mechanism** — **[DEFERRED]** — see §10.3.
-
----
-
-## 14. Linking, identity & the Overlay **[DECIDED]**
-
-Coal's linking and index system. This resolves the item deferred at §13.1. The design is
+Coal's linking and index system. The design is
 **stand-off identity**: the note file is inviolable plain text, and all the identity that powers
 links, backlinks, and block addressing lives in a Coal-maintained layer *above* the notes, pointing
 in — never injected into them.
 
-### 14.1 Founding stance
+### 13.1 Founding stance
 
 - **Notes are 100% the user's bytes.** Every note is pure, standard Markdown or Org. Coal writes
   **zero identity** into note files — no injected block markers, no frontmatter `id:`, no per-block
@@ -380,7 +351,7 @@ in — never injected into them.
   sees. Portability of the files and of link *meaning* is total; portability of block-precise
   *navigation* is deliberately Coal-only.
 
-### 14.2 The three-tier model
+### 13.2 The three-tier model
 
 Stand-off identity upgrades Coal's data model from two tiers (notes + a disposable index) to
 **three**:
@@ -401,7 +372,7 @@ Consequence, stated plainly: the "delete the index and rebuild from the notes al
 version-controlled and portable, always. A user's notes, the identity that links them, and the
 editor setup they invested in all travel together.
 
-### 14.3 Uniform addressing — the node registry
+### 13.3 Uniform addressing — the node registry
 
 The Overlay's spine is a registry in which **every addressable thing is a node of one uniform
 shape**: a **note**, a **heading**, a **block**, or a **link**. A note, a heading, and a block are
@@ -426,10 +397,10 @@ token no other editor ever sees.
 **Sidecar ownership rule.** A sidecar owns exactly the nodes **physically written in its own note.**
 Note B's blocks live in B's sidecar; note A's links live in A's sidecar. A cross-note reference is a
 pointer from A's sidecar to a node id in B's sidecar. The rule follows from the diff-ratchet
-(§14.6): a node must be tracked against the bytes it lives in, because those are the edits it has to
+(§13.6): a node must be tracked against the bytes it lives in, because those are the edits it has to
 survive.
 
-### 14.4 Registration policy — lazy
+### 13.4 Registration policy — lazy
 
 - **Notes** are registered with durable identity (the graph, backlinks, and rename-stability need
   it).
@@ -442,7 +413,7 @@ survive.
 - A block has **one canonical node**; its id is **reused** across every referrer. A housekeeping pass
   may garbage-collect a block node once nothing references it.
 
-### 14.5 Link forms & resolution
+### 13.5 Link forms & resolution
 
 - **Notes and headings** are addressed by ordinary, portable links that resolve from text already in
   the target file — `[[Design Notes]]`, `[[Design Notes#Resolution]]`, or their Markdown/Org
@@ -458,7 +429,7 @@ survive.
   note carries its *own* reference record (in its own sidecar) pointing at that one id. Same target,
   distinct references — adding a referrer touches only the referrer's sidecar, never the target's.
 
-### 14.6 Durability — the diff-ratchet
+### 13.6 Durability — the diff-ratchet
 
 Identity is **maintained, not guessed.** Coal always retains a last-known-good baseline of each
 tracked file (the Overlay's `lastKnownBlob`, deepened by Git history). Re-anchoring is therefore
@@ -480,7 +451,7 @@ vs. "replaced block" is a genuine judgment call — are exactly the cases a *hum
 either. These are **surfaced** (amber, one-keystroke confirm), never silently mis-pointed. This is a
 stronger correctness contract than any injected-marker scheme, which breaks silently.
 
-### 14.7 The Reconciliation Engine
+### 13.7 The Reconciliation Engine
 
 The executor that keeps the Overlay true to the bytes. It is **first-class core infrastructure**,
 specified from the start — the Overlay's maintenance plan is inert without it.
@@ -512,9 +483,9 @@ own rename detection (`-M`) is used as the high-confidence signal. **Coal-initia
 the note and its sidecar atomically and never hit this path.
 
 **Deletions** with no content match anywhere mark the note's tracked nodes **dangling**; inbound
-links surface in the panels (§14.9).
+links surface in the panels (§13.9).
 
-### 14.8 Storage layout
+### 13.8 Storage layout
 
 - **Mirrored, per-file sidecars.** Each note has a sidecar under `.coal/` mirroring the note tree —
   `notes/design.md` → `.coal/overlay/notes/design.md.json` — in **JSON** (machine-maintained data;
@@ -528,9 +499,9 @@ links surface in the panels (§14.9).
   on nearly every concurrent edit), **sharded** buckets (cross-note conflicts within a shard), and
   **co-located** sidecars (pollute the note folders, breaking portability).
 - **Costs & mitigations.** File-count growth is bounded by lazy creation and tolerated by Git;
-  foreign-rename sidecar pairing is handled by content/id matching and Git `-M` (§14.7).
+  foreign-rename sidecar pairing is handled by content/id matching and Git `-M` (§13.7).
 
-### 14.9 UI surfaces
+### 13.9 UI surfaces
 
 - **Dangling-links panel** (right side panel). **Current-note scope**, so it stays quiet and
   relevant; **conditional** (present only when the current note has unresolved links); **two
@@ -543,30 +514,16 @@ links surface in the panels (§14.9).
   per §6.
 - **Backlinks** are a Tier-2 derived projection (invert every sidecar's forward references), split
   into **Linked** and **Unlinked mentions** (the latter matched on note title/alias text, since ids
-  are never user-visible). Panel detail is a downstream item (§14.11).
+  are never user-visible). Panel detail is a downstream item (§13.11).
 
-### 14.10 Relationship to the data model (§13.2)
+### 13.10 Relationship to the data model
 
-This design treats a note as a **document with addressable sub-blocks**, not an outliner. The fuller
-document-vs-block/outliner data-model question (§13.2) remains deferred, but is now **partially
-constrained**: blocks are addressable units *within* document notes, one canonical node per block,
-and nothing structural depends on the block layer.
+This design treats a note as a **document with addressable sub-blocks**, not an outliner: blocks are
+addressable units *within* document notes, one canonical node per block, and nothing structural
+depends on the block layer. (Whether notes additionally carry a fuller outliner/block model is
+tracked in `TODO.md`.)
 
-### 14.11 Downstream ratifications (before implementation)
-
-Decided in principle here; each needs a concrete ratification before code:
-
-- **The frozen normalizer** — **[DECIDED] — ratified in §14.12.**
-- **Confidence thresholds** for the ambiguous band (the margin cut-points that decide silent-resolve
-  vs. surfaced-confirm).
-- **The exact sidecar JSON schema and id format.**
-- **Backlinks panel UX** detail.
-- **Embeds / transclusion** (`![[…]]`) scope — remains out of near-term scope (§7.2) pending a
-  v1-surface decision; the linking system it was blocked on is now decided.
-- **Git posture detail** — the baseline works Overlay-only; Git *strengthens* re-anchoring and
-  rename detection but is never required for correctness.
-
-### 14.12 The frozen normalizer **[DECIDED]**
+### 13.11 The frozen normalizer **[DECIDED]**
 
 The single, byte-identical text-normalization function shared by the suggester's **minter** (which
 records a block's fingerprint at link-creation) and the resolver's **matcher** (which re-anchors). If
@@ -574,7 +531,7 @@ the two ever normalized one byte differently, links would silently miss — so t
 spec, versioned, and changed only by deliberate migration.
 
 **Role — an identity key, not the durability mechanism.** Durability is the diff-ratchet's job
-(§14.6); the ratchet follows a block through real edits by diff, needing no hash equality. The
+(§13.6); the ratchet follows a block through real edits by diff, needing no hash equality. The
 normalizer only produces a clean key for three narrower jobs: exact-match in the silent-resolve band,
 duplicate detection, and cheap "did this block change?" checks. It is therefore deliberately
 **conservative** — it absorbs only *rendering-invisible* noise and preserves everything visible. Both
@@ -585,7 +542,7 @@ ratchet still follows the block by position).
 **Coal is a noise-free producer.** Coal's editor emits **only literal keyboard text** — no
 smart-quote / dash / ellipsis autoformat — and displays everything **monospaced, ligatures off**.
 This governs what Coal *produces and shows*; it **never** rewrites imported or foreign-edited bytes
-(§14.1 is inviolable — a genuine `—` or `"…"` in an imported note stays exactly those bytes). The
+(§13.1 is inviolable — a genuine `—` or `"…"` in an imported note stays exactly those bytes). The
 consequence: typographic / Unicode drift can enter only via **import or foreign editors**, which is
 the sole scope the folds below still serve.
 
@@ -611,7 +568,7 @@ that are not content, so marker churn does not change identity:
 | Markup | **preserved** — emphasis, link, and other inline markup are *not* stripped (keeps the normalizer lexical and parser-free) |
 
 **Output & versioning.** `normHash` = SHA-256 over the UTF-8 of the canonical string (stored
-truncated); the same canonical string is the input to `simhash` tokenization (§14.3). A
+truncated); the same canonical string is the input to `simhash` tokenization (§13.3). A
 **`normVersion`** is stamped in the Overlay: "frozen" means frozen *within a version*, and any future
 change to a rule above is a deliberate, re-hashing migration — never a silent shift.
 
@@ -622,7 +579,7 @@ cheap (efficiency).
 
 ---
 
-## 15. Decision log
+## 14. Decision log
 
 | Date       | Decision | Rationale |
 |------------|----------|-----------|
@@ -645,8 +602,6 @@ cheap (efficiency).
 | 2026-07-20 | Notes encrypted at rest (transparent unlock/re-lock); mechanism deferred | Private notes must not be exposed by syncing or a lost device; the scheme is too consequential for a snap decision. |
 | 2026-07-20 | License: Apache-2.0 (open source) | Permissive (frictionless ecosystem), fully compatible with the non-copyleft dependency stack, and adds a patent grant over bare MIT. |
 | 2026-07-20 | Audience: owner-first, dogfooded from day one; public release later; adoption gated on feature maturity + data security | Design and validate against real daily use; security is a prerequisite for the owner's own switch-over. |
-| 2026-07-20 | Data model (document vs block): deferred, no decisions recorded | Foundational and entangled with linking; own session later. |
-| 2026-07-20 | Linking & index system: deferred, no decisions recorded | Too consequential for a snap decision; own session later. |
 | 2026-07-20 | Process: `SPEC.md` holds decided items only; open/pending work tracked in `TODO.md` | Keep the builder's source-of-truth clean; the open list will grow fast during build. |
 | 2026-07-20 | Linking & index: **stand-off identity** — notes are inviolable plain text; all identity lives in a committed, plain-text **Overlay** above them; links live in notes, identity anchors never do | Satisfies "plain text is the source of truth" and total portability while giving durable, honest referential integrity; abolishes both the prior UUID-injection model and Obsidian-style `^blockid` markers. |
 | 2026-07-20 | Three-tier model: Tier 0 notes (content) · Tier 1 Overlay (identity/intent, committed, not disposable) · Tier 2 index (derived, Git-ignored); "rebuild from notes alone" weakens to "rebuild Tier 2 from Tiers 0+1" | The Overlay holds intent prose can't regenerate, so it is versioned, not a cache; notes, Overlay, and config are all committed and portable. |
@@ -657,4 +612,4 @@ cheap (efficiency).
 | 2026-07-20 | First-class **Reconciliation Engine** (watcher + dirty-check + off-thread ratchet + startup pass + Git hooks); foreign renames paired by content/id/Git `-M`; runs off the main thread | The maintenance plan needs a guaranteed, robust, non-blocking executor baked in from the start; off-thread avoids the synchronous-resolution freeze/data-loss failure mode. |
 | 2026-07-20 | Overlay storage: **mirrored, lazy, per-file JSON sidecars** under `.coal/` | Churn + merge locality (multi-device sync) and note-folder purity; monolithic / sharded / co-located layouts all rejected. |
 | 2026-07-20 | Dangling links: **current-note** side panel (two groups: Broken / Needs attention) + vault-wide management via a housekeeping settings surface, with `M-x` twins | Low ambient noise in the working view; deliberate full-corpus management on demand; keyboard-first. |
-| 2026-07-21 | Frozen normalizer (§14.12): a versioned, lexical, parser-free function shared by minter + matcher — kind-aware payload extraction, then NFC · LF · whitespace-collapse · a fixed typographic-fold table · locale-invariant case-fold · **markup preserved**; `normHash` = truncated SHA-256, `normVersion` stamped | The normalizer is an identity key, not the durability mechanism (the ratchet is), so it stays conservative — both over- and under-normalizing degrade to a confirm, never a mis-point. Coal emits only literal keyboard text (monospace, no ligatures) so drift enters only via import/foreign editors; the small folds serve exactly that. Serves portability (bytes untouched), compatibility (tolerates other editors), and efficiency (O(1) hash key). |
+| 2026-07-21 | Frozen normalizer (§13.11): a versioned, lexical, parser-free function shared by minter + matcher — kind-aware payload extraction, then NFC · LF · whitespace-collapse · a fixed typographic-fold table · locale-invariant case-fold · **markup preserved**; `normHash` = truncated SHA-256, `normVersion` stamped | The normalizer is an identity key, not the durability mechanism (the ratchet is), so it stays conservative — both over- and under-normalizing degrade to a confirm, never a mis-point. Coal emits only literal keyboard text (monospace, no ligatures) so drift enters only via import/foreign editors; the small folds serve exactly that. Serves portability (bytes untouched), compatibility (tolerates other editors), and efficiency (O(1) hash key). |

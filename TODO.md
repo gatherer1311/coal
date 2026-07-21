@@ -42,22 +42,24 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done (move the decided outcome 
 
 ## Deferred design work (intentionally postponed — each gets its own design session)
 
-### Linking & index system — **DECIDED → `SPEC.md` §14**
+### Linking & index system — **DECIDED → `SPEC.md` §13**
 - [x] Stand-off identity + a committed **Overlay**, the three-tier model, the uniform node registry,
   lazy block registration, Option-1 block links, the Git-backed diff-ratchet, the Reconciliation
-  Engine, mirrored per-file sidecars, and the dangling-links surfaces are all ratified in `SPEC.md` §14.
+  Engine, mirrored per-file sidecars, and the dangling-links surfaces are all ratified in `SPEC.md` §13.
 - Remaining **downstream ratifications** (decided in principle; each needs a concrete spec before code):
-  - [x] **Frozen normalizer** — **DECIDED → `SPEC.md` §14.12.** Kind-aware payload extraction, then
+  - [x] **Frozen normalizer** — **DECIDED → `SPEC.md` §13.11.** Kind-aware payload extraction, then
     NFC · LF · whitespace-collapse · a fixed typographic-fold table · locale-invariant case-fold ·
     markup preserved; `normHash` = truncated SHA-256; `normVersion` stamped for versioned freezing.
   - [ ] **Confidence thresholds** for the ambiguous band (silent-resolve vs. surfaced-confirm cut-points).
   - [ ] **Sidecar JSON schema & id format** — the concrete on-disk shape of a node record and a sidecar.
   - [ ] **Backlinks panel UX** — Linked / Unlinked-mentions grouping and interactions.
+  - [ ] **Embeds / transclusion** (`![[…]]`) inline-rendering scope — linking is decided (`SPEC.md` §13);
+    whether/when embeds render inline (with recursion / depth-cap handling) is an open v1-surface item.
   - [ ] **Git posture detail** — Overlay-only is authoritative; Git strengthens re-anchoring / rename
     detection but is never required for correctness (micro-history behaviors to detail).
 
 ### Data model (document vs block)
-- [~] **Partially constrained by `SPEC.md` §14.10:** a note is a *document with addressable
+- [~] **Partially constrained by `SPEC.md` §13.10:** a note is a *document with addressable
   sub-blocks* (not an outliner); one canonical node per block; nothing structural depends on blocks.
 - [ ] Still open: whether notes additionally carry a full **outliner / block** model, and the on-disk
   representation beyond "plain-text files."
