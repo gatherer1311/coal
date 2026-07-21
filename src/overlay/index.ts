@@ -9,3 +9,4 @@ export * from "./canonicalJson";
 export * from "./simhash";
 export * from "./neighbors";
 export * from "./resolve";
+export * from "./sidecar";
