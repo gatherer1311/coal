@@ -77,6 +77,10 @@ async function fsyncDir(dir: string): Promise<void> {
     // Best-effort: directory fsync isn't supported on every platform/filesystem
     // (design §7). A failure here must not fail the save.
   } finally {
-    await handle?.close();
+    try {
+      await handle?.close();
+    } catch {
+      // Ignore close errors — best-effort.
+    }
   }
 }
