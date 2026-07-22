@@ -33,6 +33,7 @@ app/dist/
 # Test / coverage
 coverage/
 .nyc_output/
+test-results/
 
 # Caches
 .cache/
