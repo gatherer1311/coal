@@ -7,6 +7,11 @@ name: PR title
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
+  # The queue re-runs required checks on a merge_group ref where there is no PR
+  # title to validate. The job still runs (so the required "PR title" check
+  # reports success), but the validation step is skipped — the title was already
+  # gated when the PR was open.
+  merge_group:
 
 permissions:
   contents: read
@@ -17,6 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Title becomes the squash commit — keep it meaningful
+        if: github.event_name == 'pull_request'
         env:
           TITLE: ${{ github.event.pull_request.title }}
         run: |

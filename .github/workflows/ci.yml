@@ -17,6 +17,10 @@ on:
   # the PR stuck forever. So CI runs on every PR to main.
   pull_request:
     branches: ["main"]
+  # Run on the merge queue's temporary ref too. Without this, a queued PR waits
+  # forever for the required "typecheck, test, format" check to report, wedging
+  # the queue.
+  merge_group:
 
 permissions:
   contents: read
