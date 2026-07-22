@@ -43,7 +43,9 @@ if (!app.requestSingleInstanceLock()) {
   let forceQuit = false;
   let hasDoc = false;
   const fileService = new FileService();
-  const allowedOrigins = devUrl ? [devUrl] : ["app://coal/"];
+  // Trailing slash makes the prefix an origin boundary, so a look-alike host
+  // (e.g. localhost:5173.evil) can't satisfy the startsWith trust check (design §3).
+  const allowedOrigins = devUrl ? [devUrl.endsWith("/") ? devUrl : `${devUrl}/`] : ["app://coal/"];
 
   const openInWindow = async (win: BrowserWindow, path: string): Promise<void> => {
     try {

@@ -23,7 +23,13 @@ export function handleAppProtocol(): void {
     if (filePath !== RENDERER_DIR && !filePath.startsWith(RENDERER_DIR + sep)) {
       return new Response("forbidden", { status: 403 });
     }
-    const res = await net.fetch(pathToFileURL(filePath).toString());
+    let res: Response;
+    try {
+      res = await net.fetch(pathToFileURL(filePath).toString());
+    } catch {
+      // A missing/unreadable asset yields a clean 404 rather than a generic net error.
+      return new Response("not found", { status: 404 });
+    }
     const headers = new Headers(res.headers);
     headers.set("Content-Security-Policy", CSP);
     return new Response(res.body, { status: res.status, headers });
