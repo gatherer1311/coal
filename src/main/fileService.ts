@@ -1,6 +1,7 @@
 // src/main/fileService.ts
-import { readFile, realpath } from "node:fs/promises";
-import { basename } from "node:path";
+import { open, readFile, realpath } from "node:fs/promises";
+import type { FileHandle } from "node:fs/promises";
+import { basename, dirname } from "node:path";
 import writeFileAtomic from "write-file-atomic";
 import { decode, encode } from "../kernel/io/codec";
 import type { DocMeta } from "../kernel/io/types";
@@ -46,6 +47,7 @@ export class FileService {
       const bytes = text === doc.text ? doc.pristine : encode(text, doc.meta);
       const target = await realpathOrSelf(doc.path);
       await writeFileAtomic(target, Buffer.from(bytes));
+      await fsyncDir(dirname(target));
       this.#docs.set(id, { ...doc, pristine: bytes, text });
       return { ok: true };
     } catch (err) {
@@ -63,5 +65,18 @@ async function realpathOrSelf(path: string): Promise<string> {
     return await realpath(path);
   } catch {
     return path;
+  }
+}
+
+async function fsyncDir(dir: string): Promise<void> {
+  let handle: FileHandle | undefined;
+  try {
+    handle = await open(dir, "r");
+    await handle.sync();
+  } catch {
+    // Best-effort: directory fsync isn't supported on every platform/filesystem
+    // (design §7). A failure here must not fail the save.
+  } finally {
+    await handle?.close();
   }
 }
