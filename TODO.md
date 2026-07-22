@@ -19,10 +19,6 @@ issues (design decisions close by ratification into `SPEC.md`, not by a PR).
 
 ## Open decisions (settle before the affected area is built)
 
-- [~] **Core vs official-plugin split** — decide which of the remaining features are *core Coal* and
-  which ship as **official (first-party) plugins** (§8). The **registry** of decided official plugins
-  is [`PLUGINS.md`](PLUGINS.md). Still to classify: the full code-editor mode, the Zettelkasten
-  plugin, spell/grammar check, and **templates** (all candidates for official-plugin packaging).
 - [ ] **Graph / visual rendering library** — **still deferred**; the block is the graph *view*
   scope, not the rendering tech (view depends on the deferred linking system and data model). The
   rendering *direction* is now pre-qualified in [`reference/17`](reference/17-graph-rendering-options.md):
@@ -58,15 +54,27 @@ issues (design decisions close by ratification into `SPEC.md`, not by a PR).
 - [ ] **Daily notes** — the dated-note command, folder + date-format + template config, and
   open-on-launch behavior. Depends on **Templates**.
 - [ ] **Templates** — plain-text template files in the vault, variable substitution (date / title /
-  cursor, and what else), and core-vs-plugin placement (proposed official plugin, `PLUGINS.md`).
+  cursor, and what else). An official plugin (`PLUGINS.md`); design open.
 
 _(The two small roster additions — **outline / TOC panel** and **word-count / stats** — need no design
 session; they become build tasks once building begins.)_
 
+### Theming (queued next — its own design session)
+- [ ] **Theming system design** — the concrete CSS-variable theming system (§8.1): the variable
+  catalogue, the theme manifest, light/dark handling, and the install path. Rides the plugin install
+  path but is declarative CSS-variable data with no executable code (plugin-system design doc §15).
+  Explicitly the next design session queued after the kernel/plugin pivot.
+
+### Plugin system — reconciliation detail (post-pivot)
+- [ ] **Linking-plugin data placement** — where the committed Overlay tree (§13.8, `.coal/overlay/**`)
+  and the Tier-2 index/cache sit relative to the kernel-owned `.coal/config/` tree and the plugin-data
+  `.coal/plugins/<id>/` tree (§8.3 / design doc §12). The spec keeps `.coal/overlay/**` as the committed
+  path; the final placement under the new tree is a detail for the linking plugin's own build.
+
 ### Outliner (official plugin) — design
 - [ ] The official outliner plugin's own design: its interaction model, how (or whether) it persists
   any structure beyond the note's plain-text bytes, and its Markdown/Org parity. Notes stay plain-text
-  files regardless (§13.1); the core carries no outliner model (§13.10).
+  files regardless (§13.1); the kernel carries no outliner model (§13.10).
 
 ### Encryption — remaining detail items (mechanism in §10.3/§10.4)
 - [ ] **Wrap-KDF parameters** — clamped scrypt work factor (leaning age-standard, CLI-recoverable) vs Argon2id; pin the minimum.
@@ -82,15 +90,17 @@ session; they become build tasks once building begins.)_
 
 ## Feature backlog (proposed — not yet designed or scheduled)
 
-Owner-requested surfaces captured for design. Each needs its own design pass before building; the
-*core vs official-plugin split* (above) decides which are core and which are official plugins.
+Owner-requested surfaces captured for design. Each needs its own design pass before building. Per the
+kernel/plugin pivot (`SPEC.md` §8), each ships as an **official (first-party) plugin** over the minimal
+kernel — the earlier *core vs official-plugin split* is resolved; what remains is each surface's own
+design.
 
 - [ ] **Spell check** (and *maybe* grammar check) — editor spell-checking; grammar is a stretch/maybe.
-  Open: engine (system/hunspell dictionaries vs bundled), per-language dictionaries, Markdown/Org
-  awareness (skip code, links, math), and core-vs-plugin placement.
+  Open: engine (system/hunspell dictionaries vs bundled), per-language dictionaries, and Markdown/Org
+  awareness (skip code, links, math). An official plugin (`PLUGINS.md`).
 - [ ] **Full code-editor mode** — a VSCode/Emacs-style general-purpose code editor for arbitrary file
-  types, alongside the PKM experience (leverages the CodeMirror 6 core, §4). **Probably an official
-  plugin.** Scope, language support, and coexistence with the Markdown/Org PKM surface are open.
+  types, alongside the PKM surfaces (leverages the CodeMirror 6 kernel engine, §4). An official plugin
+  (`PLUGINS.md`). Scope, language support, and coexistence with the Markdown/Org surfaces are open.
 - [ ] **Zettelkasten plugin** — Zettelkasten-style timestamped note naming, plus an option to open
   directly to *that* note on app launch when launched within the same 24-hour period. **Official
   plugin.** Naming scheme, the 24h-window rule, and config are open.

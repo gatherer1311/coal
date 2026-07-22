@@ -1,11 +1,7 @@
 # Coal — Design Specification
 
 > **Status:** Living document. This is the authoritative source the builder pulls from.
-> **Last updated:** 2026-07-21
->
-> Coal is a Linux-native text editor with the *hands of Emacs* (central minibuffer,
-> deep hackability, and your choice of **Emacs or Vim** keymaps) and the *head of Obsidian*
-> (plain-text notes, links, backlinks, live preview), speaking both **Org** and **Markdown**.
+> **Last updated:** 2026-07-22
 
 ---
 
@@ -26,12 +22,20 @@ so."
 
 ## 1. Vision
 
-Coal is a keyboard-first, Linux-native editor for people who live in plain-text notes and want
-the extensibility and muscle-memory of Emacs or Vim without leaving a modern, GNOME-at-home GUI. It
-edits Markdown and Org as first-class document formats, treats the user's files (and the editor's
-own configuration) as the single source of truth, version-controls and syncs them via Git, offers
-built-in, opt-in encryption at rest, and is extended through one coherent command/plugin/theme
-substrate.
+Coal is a keyboard-first, Linux-native editor whose defining value is its **plugin API**. At its
+heart is a **minimal, general-purpose, plain-text kernel** — it opens, presents, and navigates nearly
+any filetype, is driven from the keyboard, and is fully usable with **zero plugins** — engineered to
+be a genuinely strong and safe extension substrate. Coal's entire feature set then ships **on that API
+as bundled first-party plugins**: Markdown and Org as first-class document formats with Live Preview,
+the linking / backlinks / PKM stack, Git sync, opt-in encryption at rest, search, tags, templates, and
+the rest. So Coal serves two audiences from one core — anyone who wants a fast, hackable editor, and
+people who live in plain-text notes and want the extensibility and muscle-memory of Emacs or Vim
+without leaving a modern, GNOME-at-home GUI. It treats the user's files (and the editor's own
+configuration) as the single source of truth, version-controls and syncs them via Git, and extends
+**everything — the kernel included** — through one coherent command / plugin / theme substrate. The
+product thesis is **"the editor is its plugin API"**: generality is a substrate property, and the
+first-party plugin suite exists to prove the API is complete — not a promise to out-IDE a heavyweight
+IDE.
 
 ---
 
@@ -56,9 +60,12 @@ Non-negotiables. Every downstream decision must be consistent with them.
    fully switchable, §6). Mouse interaction is first-class where it genuinely wins (e.g. the visual
    graph) and available-in-addition where useful — but the core editing loop never *requires* the
    mouse.
-5. **One extension substrate.** A single command/extension system. The native Emacs layer, the
-   plugin system, and the theme system are all first-class citizens built on it — not separate
-   worlds.
+5. **A minimal kernel; everything else is a plugin.** A single command / extension system. The
+   irreducible **kernel** is a real, usable editor with zero plugins; Coal's whole feature set —
+   Markdown/Org rich editing, linking/PKM, Git, encryption, search, and the rest — is retained but
+   **re-homed as bundled first-party plugins** on the public API, and the kernel registers its own
+   behavior through that **same public API** (core-as-plugins made literal, §8). The plugin system and
+   the theme system are first-class citizens of that one substrate, not separate worlds.
 6. **Convergent, not derived.** See §0.
 
 ---
@@ -108,9 +115,9 @@ on" (§2). The supported set:
 - **Editor core:** CodeMirror 6.
 - **Implementation language:** TypeScript. Both decided stack components — Electron and
   CodeMirror 6 — are authored in and ship first-class type definitions for TypeScript, so it is
-  the language that carries type-checking end-to-end across the shell, the editor core, and the
+  the language that carries type-checking end-to-end across the shell, the editor kernel, and the
   extension API without an interop seam. Given "core-as-plugins" (§8), the same typed API surface
-  the core is written against is the one plugin and theme authors consume.
+  the kernel is written against is the one plugin and theme authors consume.
 
 _(Graph/visual-rendering library and similar specifics are tracked in `TODO.md` until ratified.)_
 
@@ -139,13 +146,16 @@ _(Graph/visual-rendering library and similar specifics are tracked in `TODO.md` 
 - **Two first-class keymaps out of the box: Emacs *and* Vim.** Both ship, both are fully supported,
   and the user **chooses at first run** (there is no baked-in default); the choice is a declarative
   editor setting (§9) that can be switched at any time.
-  - **Delivery — official plugins over a core seam.** The **command substrate** (§8), the
-    **minibuffer**, and a **keymap / input-mode seam** live in the core; the Emacs and Vim keymaps
-    are **bundled official plugins** built on that seam (tracked in `PLUGINS.md`). This is a *safe*,
-    input-only surface (it touches no files, keys, or network), so it sits firmly on the
-    community-open side of the §8.2 capability guardrail — later community keymaps are a natural,
-    safe extension. The seam is justified now (not speculatively) because it has **two real
-    consumers from day one**.
+  - **Delivery — both keymaps live in the kernel.** The **command substrate** (§8), the
+    **minibuffer**, the **input-mode seam**, **and both full keymaps (Emacs and Vim)** are part of
+    the **kernel** — not opt-in plugins. The input layer is fundamental to a keyboard-first editor, so
+    keeping both suites in the kernel resolves the "must be operable out of the box" + "must pick a
+    keymap" tension: the zero-plugin kernel is already fully drivable, and there is **no baked-in
+    default** — first launch prompts Emacs-or-Vim and writes the choice to config (if config already
+    declares one, no prompt). The keymaps still **bind through the public command / keybinding API**
+    (so that seam is dogfooded like everything else), and binding keys is a **baseline** plugin
+    ability requiring no capability (§8.2) — so later **community keymaps remain a natural, safe
+    extension** as ordinary plugins, touching no files, keys, or network.
   - **Full feature parity.** Every Coal command is reachable in **both** keymaps; each binding is
     modeled on the **closest counterpart in its respective editor** (e.g. save is Emacs `C-x C-s`
     and Vim `:w`, both resolving to the one registry command). Where a concept is native to only one
@@ -175,6 +185,12 @@ _(Graph/visual-rendering library and similar specifics are tracked in `TODO.md` 
 - **Source mode is a decoration toggle, not a second renderer.** Live Preview and Source are the
   same CodeMirror 6 instance; Source is Live Preview with all hide/replace decorations suppressed,
   so switching is instant and preserves scroll and selection.
+- **Layer (per the §8 kernel/plugin split).** The **kernel** owns the raw substrate — the CodeMirror 6
+  editor engine, byte-exact IO, the generic "present as text" path (which *is* Source), the decoration
+  primitives, and the syntax-highlighting engine. **Live Preview itself — prettifying markup and the
+  inline-render scope of §7.2 — is delivered by the first-party Markdown/Org plugin** over that
+  substrate, not by the kernel. The reveal/hide rules (§7.1) and inline-render decisions (§7.2) are
+  unchanged; only the layer that implements them is now named.
 
 ### 7.1 Live Preview — reveal/hide behavior
 Live Preview prettifies inline markup (hiding the syntax markers and styling the rendered form) and
@@ -248,27 +264,54 @@ in Live Preview, consistent with "no render mode."
 ---
 
 ## 8. Extensibility architecture
-One substrate, several front-ends.
 
-- **Central command registry.** Everything Coal can do is a *command* registered in one place.
-- **Keybindings and the minibuffer (`M-x`) are front-ends onto that registry** — two ways to reach
-  the same commands, not parallel implementations.
-- **Core is built on the same API plugins use** (the "core as plugins" discipline). A plugin can do
-  what the core does because it registers commands / views / themes through the identical public
-  API.
-- **First-class plugin system** and **first-class theme system**, from the start — neither is
-  deferred. Themes install through the same path as plugins.
-- **Official (first-party) plugins.** Beyond the minimal core, Coal ships **official plugins** —
-  first-party features built on the same public API, bundled and trusted (§8.2 trust tiers),
-  analogous to Obsidian's "core plugins." The project deliberately leans into this: as much as is
-  reasonable lives as an official plugin over a small core, honoring Coal's Emacs-derived extensible
-  substrate. The **registry of official plugins** — committed and proposed — is [`PLUGINS.md`](PLUGINS.md);
-  *which* remaining features are core versus official plugins is an open split tracked in `TODO.md`.
+**A minimal kernel; everything else is a plugin.** Coal re-founds the core/plugin split around an
+irreducible **kernel** — a real, usable, keyboard-first editor with **zero plugins enabled** — and
+re-homes the entire feature set as bundled first-party plugins on the public API. The concrete system
+(kernel boundary, capability model, extension-point taxonomy, manifest, versioning, lifecycle,
+distribution) is designed in
+[`docs/superpowers/specs/2026-07-22-plugin-system-design.md`](docs/superpowers/specs/2026-07-22-plugin-system-design.md);
+this section records the load-bearing ratified decisions.
+
+**The kernel boundary.** One principle draws the line: **the kernel does raw presentation +
+navigation; plugins do interpretation + enrichment.** The kernel holds the CodeMirror 6 editor engine
+and buffer model; byte-exact IO for any filetype (the §9 byte-for-byte guarantee, for *all* files);
+filetype identification + a generic "present as text" path; the **syntax-highlighting engine** (the
+per-language *grammars* are plugins); the **command registry + unified minibuffer + input-mode seam +
+both full keymaps** (§6); the **workspace shell** (file-tree, quick switcher, windows-as-split,
+per-window tabs, §14.1); the config loader + Settings UI + the kernel-owned config tree (§8.3, §9); the
+extension substrate itself (plugin loader + capability broker + typed host API); and the **privileged
+seams** (§8.2), declared but empty by default. Everything interpretive — Markdown/Org rich support and
+Live Preview (§7), the linking / PKM stack (§13), Git (§10.1), encryption (§10.2), search, tags,
+templates, spell-check, the full code-editor mode — is a **plugin**.
+
+- **Central command registry.** Everything Coal can do is a *command* registered in one place;
+  keybindings and the minibuffer (`M-x`) are front-ends onto it, not parallel implementations.
+- **Core-as-plugins, made literal.** The kernel registers its *own* behavior through the **same public
+  registry / API** third-party plugins use, under the same broker (with first-party grants). It is not
+  split into separately-installable packages, but at runtime it goes through the identical seam — which
+  proves the API is complete by construction: since Git, encryption, and the whole PKM stack must be
+  built on the public API like everyone else, the API cannot quietly have gaps its own flagship
+  features fall through.
+- **First-class plugin *and* theme systems**, from the start — neither deferred. Themes install
+  through the same path as plugins (§8.1).
+- **Official (first-party) plugins, bundled but off by default.** Every official plugin ships *inside*
+  the app package (offline-safe; no fetch) but is **dormant until enabled** — enabling one activates
+  and wires it up. The **default** experience is the minimal editor; **fully-outfitted Coal** = kernel
+  + the official plugin suite enabled. No feature is lost relative to the prior design — what changes is
+  the *layer* that implements it, the *delivery* (opt-in), and the *trust anchor* for dangerous powers
+  (core-membership → first-party bundling). The registry of official plugins is
+  [`PLUGINS.md`](PLUGINS.md); the earlier "which features are core vs official plugin" split is
+  **largely resolved** by this pivot — almost everything is a plugin over the minimal kernel.
+- **Passive providers auto-activate.** "Off by default" governs *feature* plugins the user opts into.
+  First-party, side-effect-free **passive providers** — notably syntax **grammars** — auto-load on
+  demand by filetype (you never "enable Rust highlighting"; it just works when you open Rust).
+  Third-party grammars never auto-activate.
 
 ### 8.1 Theming mechanism
 - **Themes are expressed as CSS custom properties (CSS variables).** The shell is web technology
   (§3–4), so the styling substrate is CSS; a theme is a set of variable definitions the whole UI
-  reads from, not a fork of component styles. This is what lets the core and third-party themes
+  reads from, not a fork of component styles. This is what lets the kernel and third-party themes
   share one styling surface, consistent with "core-as-plugins."
 - **Theme-package format:** a theme is a directory (installable through the plugin path) containing
   a **manifest** (name, author, version, and whether it targets light, dark, or both) plus one or
@@ -284,64 +327,110 @@ One substrate, several front-ends.
 - _(The concrete variable catalogue — the exact names and what each controls — is a build-time
   detail that lands with the first themable surfaces, not a spec-level decision.)_
 
-### 8.2 Plugin API & sandboxing
-- **Language.** Plugins are authored in **TypeScript / JavaScript** against the **same typed API
-  the core is written against** (§4, §8). There is no separate embedded plugin language;
-  "core-as-plugins" means one API surface and one language, not a privileged native core with a
-  lesser scripting layer bolted on.
-- **Isolation model: in-process, but without ambient authority.** Plugins execute **in-process** —
-  fast, and powerful enough to build the core itself through the same API. But **ambient Node.js /
-  Electron authority is withheld**: plugin code does *not* receive `require('fs')`, raw
-  `child_process`, the network stack, or Electron internals by default. **The typed Coal API is the
-  sole channel to any host capability.** This is the load-bearing commitment — without it, an
-  in-process plugin could simply reach around any permission model via raw Node, and the manifest
-  below would be documentation rather than a gate.
-- **Capabilities are declared and broker-enforced.** Every plugin ships a **manifest** (TOML, per
-  §9) declaring the capabilities it needs — e.g. filesystem scope, network hosts, note-content
-  access, shell / child-process, clipboard. The API **broker enforces the manifest**: an operation
-  the manifest never declared is not reachable. A plugin that never declared `note-content` or
-  `network` therefore cannot read decrypted notes or phone home — which is what gives Coal's
-  opt-in encryption-at-rest / privacy posture (§10) a handle a plugin cannot silently route
-  around.
-- **Trust tiers.** **First-party / core** plugins are trusted and may be granted capabilities by
-  default — this is how core-as-plugins builds the whole editor through the public API.
-  **Third-party** plugins have their **declared capabilities surfaced to the user at install for
-  consent**; grants are **revocable** and **auditable** afterward.
-- **The most dangerous capabilities are first-party-only.** A class of capabilities is so powerful
-  that user consent cannot make it safe — controlling the physical on-disk representation of files
-  (a storage codec), custody of encryption keys, gating application startup, or any ambient
-  Node/Electron host authority. These are **reserved to first-party code the project ships and
-  audits; they are never offered to third-party plugins, even with consent.** The reasoning: for a
-  privacy-respecting tool, a guarantee that hinges on every user correctly judging a "this plugin
-  will control how all your files are stored / hold your keys" dialog is no guarantee at all. This
-  is why encryption stays **core** rather than a plugin (§10.2) — it needs exactly these powers.
-  Should a genuine second consumer of such a seam ever appear, the seam is designed then, against
-  real cases, under this rule. **Safe, bounded surfaces stay community-open** — notably the
-  keymap / input-mode seam (§6), which touches no files, keys, or network.
-- **Honest boundary.** A *granted* capability is genuine access: a plugin the user grants
-  `note-content = "read"` really does see decrypted note text in memory. The controls are therefore
-  **least-privilege declaration + explicit consent + revocation + an auditable grant record** — not
-  a claim that arbitrary plugin code is fully contained. The value of the model is that the
-  *default* is **no ambient authority** and every sensitive reach is **declared and consented** — a
-  real improvement over all-or-nothing in-process trust, without the ecosystem friction and the
-  core-as-plugins conflict of a hard RPC/interpreter sandbox.
-- **Reconciliation with §8 ("identical public API").** The API surface core and third-party plugins
-  call is **identical**; what differs across trust tiers is **which capabilities are granted**, not
-  the API itself. Core-as-plugins holds at the API level; the capability broker is orthogonal to it.
+### 8.2 Plugin API, capabilities & trust
+- **Language.** Plugins are authored in **TypeScript / JavaScript** against the **same typed API the
+  kernel is written against** (§4, §8). There is no separate embedded plugin language; core-as-plugins
+  means one API surface and one language, not a privileged native core with a lesser scripting layer
+  bolted on.
+- **Baseline vs capability.** Being a plugin freely grants **baseline** abilities — register commands,
+  keybindings, views, status-bar items, settings, hook subscriptions — none of which touch user data or
+  the system. A **capability** is only a *reach* into user data, the system, or another plugin's
+  domain. Contribution = baseline; the data/system reach behind it = capability. This keeps the consent
+  bill short and meaningful.
+**Normal capabilities** — declarable, scoped least-privilege, broker-enforced, and (for third-party)
+granted by informed per-plugin consent; broadening a scope is a separate, visible declaration:
 
-### 8.3 Plugin management & enablement
-- **Plugins are managed declaratively, like all configuration (§9).** The set of installed plugins
-  and their enabled/disabled state lives in a plain-text, version-controllable config file:
-  **`.coal/config/PLUGINS.<ext>`** (`<ext>` per §9 — TOML by default), portable with the rest of the
-  setup.
-- **Two front-ends onto one file.** Plugins are managed **both** by editing that declarative file
-  directly **and** from within the app's Settings UI; per §9 the Settings UI is a front-end that
-  **reads and writes that text file** — there is no separate authoritative plugin store it shadows.
-- **Enablement is explicit state, not presence.** A plugin entry carries an explicit **`enabled`** /
-  **`disabled`** value, so a plugin can be installed-but-disabled without removing it. Enabling a
-  third-party plugin still routes through the §8.2 capability-consent flow.
-- **Config location.** This fixes **`.coal/config/`** as the home for declarative configuration
-  files, alongside the Overlay / index / cache trees under `.coal/` (§13.8).
+| Capability | Gates | Default scope |
+| --- | --- | --- |
+| `document` | Read/write buffer content, selection | `read`; active-doc only (vault-wide = explicit) |
+| `vault` | Read/write files in the vault | vault root (broader FS = explicit `fs-external`) |
+| `network` | Outbound connections | declared host allowlist |
+| `process` | Spawn subprocesses | declared executable allowlist |
+| `clipboard` | Read/write clipboard | — |
+
+**Privileged class — first-party only, never third-party even with consent.** These seams are
+*systemically* dangerous (they subvert guarantees for *all* data and *other* plugins, so consent cannot
+make them safe), so they are reserved to first-party-audited code and simply not offered to third-party:
+
+| Seam | Why it is systemic |
+| --- | --- |
+| `storage-codec` | Governs how *every* file is physically written; can defeat encryption |
+| `startup-gate` / `unlock` | Decides whether the app opens at all |
+| `key-custody` | Holds the keys protecting everything |
+
+There is deliberately **no** `ambient` / raw-Node capability: concrete brokered caps cover every real
+need, so nothing bypasses the broker. The anchoring distinction — a *normal* cap harms only the
+consenting user (their data, their informed choice), a *privileged* cap subverts guarantees for
+everyone — is what splits "consent is meaningful" from "reserved to first-party." Encryption fills
+exactly this class, which is why it is a **first-party plugin** and never third-party (§10.2; the
+privileged startup/storage seam is detailed in the design doc §11).
+
+- **Two tiers, one gate.** **First-party (bundled) is fully trusted** — all capabilities including the
+  privileged class, granted by default, no per-plugin consent, passive providers auto-activate; it is
+  the *only* tier eligible for the privileged class (this is what makes the encryption plugin
+  tractable). **Third-party is blocked by default** (Obsidian-style Restricted Mode): enabling
+  third-party at all is one explicit, well-warned global gate, and there is **no first-party registry**
+  — third-party plugins live in open-source git repos (§8.3).
+- **Isolation — a curated realm.** Even with third-party enabled, untrusted code runs in a realm with
+  **zero ambient authority**: it cannot reach `fs`, `process`, `network`, or Node/Electron internals
+  except through the brokered API, and only for a capability it **declared** and was **granted**. A
+  plugin that declares nothing dangerous genuinely *cannot* do anything dangerous. Trusted first-party
+  code is not realm-boxed (it is audited instead). This preserves "the typed API is the sole channel"
+  as a structural property while staying in-process — an honest boundary, not a containment claim.
+- **Consent (third-party normal caps).** With the global gate on, installing a specific plugin shows
+  its declared, scoped caps and asks a single informed yes/no for *that* plugin (no per-cap toggles).
+  Grants drop when a plugin is disabled; the manifest is inspectable in Settings anytime.
+- **First-party trust is structural — no per-plugin crypto in v1.** First-party = the set baked into
+  the app bundle (covered by the app's own RPM/Flatpak signature); third-party = anything installed
+  from a git URL (by construction not in the bundle). First-party updates ride app releases, so the
+  privileged plugins need no out-of-band channel. Per-plugin cryptographic signing is a **reserved
+  future extension point**, designed only if first-party ever distributes out-of-band or a community
+  registry appears.
+- **Honest boundary.** A *granted* capability is genuine access: a plugin granted `document` really does
+  see decrypted note text in memory. The controls are **least-privilege declaration + the realm +
+  informed consent + drop-on-disable** — not a claim that granted code is fully contained. The value of
+  the model is that the *default* is **no ambient authority** and every sensitive reach is **declared
+  and consented**, without the ecosystem friction of a hard RPC/interpreter sandbox. The API surface is
+  **identical** across tiers; what differs is **which capabilities are granted**, not the API itself.
+
+### 8.3 Plugin management, enablement & config surface
+The whole `<vault>/.coal/config/` tree is **kernel-owned; no plugin can write it** — structural
+privilege separation, so a plugin cannot enable itself or edit the config layer. It sits alongside the
+Overlay / index / cache trees under `.coal/` (§13.8).
+
+```
+<vault>/.coal/
+  config/                      # kernel-owned; no plugin can write here
+    settings.toml              # kernel options only (keymap choice, editor-engine basics)
+    plugins.toml               # enablement roster — bundled + third-party
+    plugins/
+      coal.git.toml            # first-party plugin settings
+      me.alice.fancylinks.toml # third-party plugin settings — same rule
+  plugins/                     # plugin-owned data
+    me.alice.fancylinks/       # third-party installed code + its index/cache
+```
+
+- **`settings.toml`** holds **kernel options only** — a small set, because most "settings" are really
+  plugin settings (Live Preview itself is a plugin).
+- **`plugins.toml`** is the **enablement roster** for all plugins, kernel-owned so a plugin can't
+  enable itself or a peer. First-party entries carry `enabled` (absent = default off); third-party
+  entries also carry `source` (git URL), a pinned `version`, and `consented` (the §8.2 per-plugin
+  consent record). This supersedes the earlier single `.coal/config/PLUGINS.<ext>` file.
+- **`plugins/<id>.toml`** holds **per-plugin settings, uniform for first-party and third-party** —
+  isolated per plugin (no shared-file muddying), but inside the kernel-owned tree.
+- **Plugin data** (index/cache; third-party installed code) lives under `plugins/<id>/`, separated
+  from config by owner.
+- **Two front-ends onto text, no shadow store (§9).** Settings are **manifest-schema-declared and
+  kernel-round-tripped**: the Settings GUI renders from the schema and reads/writes the text file with
+  no separate authoritative store; plugins read reactively and writes go through the settings API.
+  Per-plugin *location*, not author-freeform *format*. Enablement is explicit state, not presence — a
+  plugin can be installed-but-disabled — and enabling a third-party plugin still routes through the
+  §8.2 consent flow.
+- **Third-party distribution is git-based.** With the global gate on, install clones a user-given git
+  URL, reads `plugin.toml`, shows the declared scoped caps, takes per-plugin consent, pins a concrete
+  ref, and records it — so a fresh machine reconstructs the setup by re-cloning each pin. Plugins ship
+  **pre-built JS** (Coal never runs a build step); updates are **manual, never automatic**. The full
+  install / update / uninstall flow is in the design doc §13.
 
 ---
 
@@ -369,9 +458,12 @@ One substrate, several front-ends.
 ### 10.1 Git version control
 - Git is a **first-class** part of Coal, not an optional integration. It provides **free off-site
   sync** (a deliberate advantage over paid-sync models) and complete, browsable **history**.
+- **Delivered as a bundled first-party plugin** (§8) over the kernel, using **normal** capabilities
+  (`process = ["git"]`, `vault = "readwrite"`) — no privileged seam. First-party and enabled in
+  fully-outfitted Coal; the value and behavior above are unchanged, only the layer is named.
 
 ### 10.2 Encryption at rest
-- **A first-class, built-in, *opt-in* core feature — off by default.** When a vault has encryption
+- **A first-class, built-in, *opt-in* feature — off by default.** When a vault has encryption
   enabled, notes / user content are stored as ciphertext, so neither the remote host nor a
   lost/stolen device exposes the content; a private repo alone is not relied on. It is **not** a
   universal requirement: **plaintext vaults are equally first-class**, so a developer can push
@@ -380,9 +472,17 @@ One substrate, several front-ends.
   see the §2 principle-#3 amendment.)*
 - **Enabled per vault**, chosen at vault creation and toggleable afterward; the choice is
   declarative, living with the rest of the vault's configuration (§8.3 / §9).
-- **Core, not a plugin.** Encryption needs the most privileged powers in the app — control of the
-  on-disk representation, key custody, and startup gating — exactly the first-party-only capabilities
-  of §8.2, so it lives in the **core** rather than the plugin surface.
+- **A first-party plugin filling the privileged seams — the kernel never learns crypto.** Encryption
+  needs the most privileged powers in the app — control of the on-disk representation, key custody, and
+  startup gating — which are exactly the **privileged class** reserved to first-party code (§8.2). It is
+  therefore a **bundled first-party plugin** that registers the `storage-codec`, `startup-gate`, and
+  `key-custody` seams: every kernel file read/write flows through the codec's `decode()`/`encode()` (no
+  codec = plaintext passthrough = the default editor), and the startup-gate blocks boot until the vault
+  is unlocked. The **kernel has no native "locked" concept** and knows nothing of `age` or keys — it
+  supplies a boot barrier and an IO indirection point; the encryption plugin supplies the crypto. This
+  is the acid test of core-as-plugins (the boot sequence is in the design doc §11), and it *supersedes*
+  the prior "encryption stays **core**, not a plugin" decision: encryption is now a plugin, delivered
+  over a seam that exists precisely because building it forced the seam into being.
 - **Transparent when on.** The authoring format stays plain `.md` / `.org`; inside Coal (unlocked)
   the user sees and edits plain text. Coal decrypts for use and **re-locks when the app is closed**.
 - **Scope:** user notes/content. Configuration (§9) stays plaintext-versioned so it remains
@@ -556,6 +656,16 @@ Coal's linking and index system. The design is
 **stand-off identity**: the note file is inviolable plain text, and all the identity that powers
 links, backlinks, and block addressing lives in a Coal-maintained layer *above* the notes, pointing
 in — never injected into them.
+
+**Layer (per the §8 kernel/plugin split).** This entire system — the Overlay, the node registry, the
+diff-ratchet, the Reconciliation Engine, backlinks, and the linking UI — is delivered by the
+first-party **linking plugin** (seeded by the existing `src/overlay/`, which becomes the plugin's core,
+not more kernel), built on the public API over the kernel's substrate: the document/buffer model,
+byte-exact IO, and the storage-codec seam its sidecars ride (so an encrypted vault encrypts the Overlay
+too, §10.3). The stand-off-identity design in §13.1–§13.15 is **unchanged** — it survives the pivot
+verbatim; only the layer that owns it is now named. (Where the committed Overlay tree §13.8 sits
+relative to the kernel-owned `.coal/config/` and plugin-data `.coal/plugins/<id>/` trees of §8.3 is a
+detail for the linking plugin's own build; `.coal/overlay/**` stays its committed path here.)
 
 ### 13.1 Founding stance
 
@@ -757,12 +867,12 @@ The data model is settled: a note is a **document with addressable sub-blocks**,
 Blocks are addressable units *within* document notes, one canonical node per block, and nothing
 structural depends on the block layer.
 
-- **No core outliner.** Coal's core carries no outliner/block data model; the
-  document-with-sub-blocks model above is the whole of it.
-- **Outliner is an official plugin.** A fuller outliner / block-manipulation experience ships as an
-  **official (first-party) plugin** (§8) layered *over* the plain-text document — never as a change
-  to the core model or the on-disk format (§13.1 — notes stay pure Markdown/Org). The plugin's own
-  design (interaction model, any structure persistence, Markdown/Org parity §5) is tracked in
+- **No outliner data model in the kernel.** Neither the kernel nor the linking plugin carries an
+  outliner/block *manipulation* model; the document-with-sub-blocks model above is the whole of it.
+- **Outliner is a separate official plugin.** A fuller outliner / block-manipulation experience ships
+  as its own **bundled first-party plugin** (§8) layered *over* the plain-text document — never as a
+  change to the data model or the on-disk format (§13.1 — notes stay pure Markdown/Org). The plugin's
+  own design (interaction model, any structure persistence, Markdown/Org parity §5) is tracked in
   `TODO.md`.
 
 ### 13.11 The frozen normalizer
@@ -1295,10 +1405,16 @@ stored as plain text per §9.
 The surfaces below **are** v1. Legend: *specced* = already ratified elsewhere in this document; *new* =
 ratified in this section; *own session* = on the v1 roadmap with its deep design tracked in `TODO.md`.
 
-- **Editor & command core** *(specced)* — Live Preview + Source (§7); command palette + unified
-  minibuffer, `M-x` / `M-:` / Vim `:` + `/` (§6, §8); Emacs & Vim keymaps (`PLUGINS.md`).
-- **Workspace shell** *(new, §14.1)* — file-tree sidebar; windows-as-split; per-window tabs; quick
-  switcher.
+**Layer (per §8).** The **kernel** owns the editor engine, the command / minibuffer core, both
+keymaps, the workspace shell, and Settings; every *interpretive* surface below — Live Preview, the
+linking / knowledge cluster, the PKM surfaces, and the roadmap items — is **plugin-delivered** (bundled
+first-party, enabled in fully-outfitted Coal). "v1 surface" names *what* ships, not which layer owns it.
+
+- **Editor & command core** *(specced)* — the **kernel** editor engine with Live Preview + Source
+  (Live Preview delivered by the Markdown/Org plugin, §7); command palette + unified minibuffer,
+  `M-x` / `M-:` / Vim `:` + `/` (§6, §8); both **Emacs & Vim keymaps** (kernel, §6).
+- **Workspace shell** *(new, §14.1; kernel)* — file-tree sidebar; windows-as-split; per-window tabs;
+  quick switcher.
 - **Linking & knowledge** — wikilink navigation & resolution (§13.5, *specced*); the **Links panel**,
   bidirectional (§13.14, *extended here*) — *Links to* (outgoing) + *Linked from* (Linked + Unlinked
   mentions); the **Dangling / ambiguous-links** panel + vault housekeeping (§13.9, *specced*);
@@ -1362,10 +1478,11 @@ frontmatter is editing text, like any other line.
 | 2026-07-21 | Encryption mechanism (§10.3): one scheme for **both** remote and local at-rest — **app-managed decrypt-to-memory** with **`age`/`typage`** (ChaCha20-Poly1305 / X25519, in-process TS, no external binary). Notes are ciphertext `age` files at rest, so Git versions opaque blobs (no clean/smudge filter), re-encrypted only on real change (randomized → no equality leak). **Single vault X25519 identity, passphrase-wrapped** (`age` scrypt-passphrase, clamped) in a Bitwarden-style hierarchy (passphrase→KEK→identity→per-note keys), so device onboarding = clone + passphrase and rotation re-wraps one key. Unlock holds the key in the main process only, **lock = purge** (optional GNOME Secret-Service cache); `textconv` + a decrypt→3-way→re-encrypt merge driver give diffs/merges. **Overlay encrypted too** (closes the §13.15 leak); **config stays plaintext**; portability via standard-`age` + import/export (amends §13.1). Metadata (names/sizes/history) deliberately not hidden. | Delivers §10.2 (content ciphertext on the remote **and** at rest) from one in-process mechanism on vetted primitives — no git-filter, no external tool. The decrypt-to-memory + single passphrase-wrapped vault key mirrors password-manager practice (Bitwarden) and keeps multi-device onboarding to 'clone + passphrase'; `age` keeps the format open (CLI-decryptable) so import/export preserve portability. Metadata leak is accepted (mitigable by a private/self-hosted remote), not solved. Grounded by the reference/19 survey. |
 | 2026-07-21 | Supported systems (§3.1): Linux primary — **RPM at launch**, DEB + Flatpak post-launch; **macOS** post-launch; **Android APK-only** (sideloaded, no store) post-launch; Linux stays first-class, others additive | Broadens reach without diluting Linux-first (§2): only RPM is a launch commitment, macOS/Android are committed targets held to the same native-feel bar; per-platform build work is tracked in `TODO.md`. |
 | 2026-07-21 | Markdown ⇄ Org feature parity within Coal (§5): every Coal content feature works symmetrically for both syntaxes; parity is scoped to Coal's own features, not to re-implementing Org-application features in Markdown | Makes explicit an invariant already implied by §5/§7.1/§13 — both formats are first-class, so Coal's own features never favor one; it is not a promise about the out-of-scope Org-application suite. |
-| 2026-07-21 | Official (first-party) plugins (§8) + default theme **"Sublime"** (§8.1): Coal ships trusted first-party "official plugins" over a minimal core (Obsidian's "core plugins" model), leaning into the extensible substrate; the bundled default theme is **Sublime** — dark-black background with sublime-green accents, delivered through the normal theme path | Embraces Coal's Emacs-derived extensibility (§8) — as much as reasonable lives as official plugins over a small core; the default theme is a concrete visual anchor (values produced with the pre-build visual design). The concrete core-vs-plugin split stays open in `TODO.md`. |
-| 2026-07-21 | Plugin management & enablement (§8.3): installed plugins + enabled/disabled state live in a declarative `.coal/config/PLUGINS.<ext>` file (TOML per §9), managed both by editing the file and from the Settings UI (which reads/writes the file, no shadow store §9); explicit `enabled`/`disabled` values; fixes `.coal/config/` as the config home | Applies §9 (plain-text source of truth, GUI-as-front-end) to plugins; explicit enablement lets a plugin be installed-but-disabled; third-party enable still routes through §8.2 consent. |
+| 2026-07-21 | Official (first-party) plugins (§8) + default theme **"Sublime"** (§8.1): Coal ships trusted first-party "official plugins" over a minimal core (Obsidian's "core plugins" model), leaning into the extensible substrate; the bundled default theme is **Sublime** — dark-black background with sublime-green accents, delivered through the normal theme path. **[Superseded in part 2026-07-22 (kernel/plugin pivot): the "core vs official-plugin split stays open" is now largely resolved — almost everything is a plugin over a minimal kernel; the Sublime default is unaffected. See the 2026-07-22 entry.]** | Embraces Coal's Emacs-derived extensibility (§8) — as much as reasonable lives as official plugins over a small core; the default theme is a concrete visual anchor (values produced with the pre-build visual design). The concrete core-vs-plugin split stays open in `TODO.md`. |
+| 2026-07-21 | Plugin management & enablement (§8.3): installed plugins + enabled/disabled state live in a declarative `.coal/config/PLUGINS.<ext>` file (TOML per §9), managed both by editing the file and from the Settings UI (which reads/writes the file, no shadow store §9); explicit `enabled`/`disabled` values; fixes `.coal/config/` as the config home. **[Superseded 2026-07-22 (kernel/plugin pivot): the single `.coal/config/PLUGINS.<ext>` file is replaced by the kernel-owned `.coal/config/` tree — `settings.toml` + `plugins.toml` roster + `plugins/<id>.toml`. See the 2026-07-22 entry and §8.3.]** | Applies §9 (plain-text source of truth, GUI-as-front-end) to plugins; explicit enablement lets a plugin be installed-but-disabled; third-party enable still routes through §8.2 consent. |
 | 2026-07-21 | Data model settled (§13.10): a note is a **document with addressable sub-blocks, not an outliner**; core carries no outliner model; a fuller outliner ships as an **official plugin** layered over the plain-text document (never altering the core model or on-disk format §13.1) | Resolves the open data-model question in `TODO.md`: keep the core minimal and portable (§13.1), and deliver outlining as opt-in first-party extensibility (§8) rather than a core commitment; the plugin's own design remains open. |
 | 2026-07-21 | Recovery-key backstop (§10.4): a **recovery key generated by default** at vault creation — a default, not a requirement, with a **real, reversible opt-out** (skip at creation + full removability in Settings). Mechanism = a **second `age` stanza** (random X25519 recovery recipient) on the wrapped vault identity, so either the passphrase or the recovery key unwraps it; Coal stores only the public recipient and **never the recovery secret** (not the repo, not the GNOME Secret Service). One-time **Emergency Kit** (standard `AGE-SECRET-KEY-…`, CLI-recoverable); recovery **forces a new passphrase** and offers a fresh key; rotate/remove are one small re-wrap. v1 = one key; N-recipients + FIDO2/WebAuthn are extension points | §10.3 makes the passphrase the sole gate and §10.2 puts real local data behind it, so a forgotten passphrase is otherwise permanent total loss — too sharp an edge to leave as the silent default for a notes app. `age`'s native multi-recipient support delivers the escape hatch with no bespoke crypto and no escrow, keeping zero-knowledge intact; default-on protects the common case while removability honors the §9 "default, not requirement" rule and contains the second-full-power-credential trade-off. |
-| 2026-07-21 | Encryption posture (§10.2 / §2 principle #3): encryption at rest walked back from a hard **requirement** to a **first-class, built-in, opt-in core feature — off by default**, enabled per vault; **plaintext vaults are equally first-class** (a developer pushes readable files to a company repo; hassle-averse users skip it). Founding principle #3 softened from "private by default" → "privacy built in, opt-in"; §1 vision updated. The §10.3/§10.4 **mechanism is unchanged**, and encryption **stays core** (not a plugin). Adopts a standing guardrail (§8.2): the most dangerous capabilities — storage-codec / physical-representation, key custody, startup gating, ambient host authority — are **first-party-only, never third-party-consentable**; a pluggable storage seam is deferred until a genuine second consumer exists. | Optionality (not plugin-ness) was the real goal, and it is met without exposing the app's most dangerous seams to community plugins or building a general storage seam speculatively for one consumer; keeping encryption core changes the just-ratified mechanism the least. The guardrail keeps Coal's private-when-enabled posture from ever hinging on users judging un-judgeable "control all your files / hold your keys" consent dialogs. |
-| 2026-07-21 | Interaction model (§6 / §2 principle #4): **Emacs *and* Vim keymaps both ship out of the box**, chosen at **first run** (no baked-in default), declaratively switchable (§9), with **full feature parity** (every command bound in both, each modeled on the closest counterpart in its editor) and **fully-supported Vim modes**. Delivered as **bundled official plugins** over a core command-substrate + minibuffer + **input-mode seam**; the **minibuffer is unified** — Emacs `M-x`/`M-:`, Vim `:` ex line + `/` search + mode indicator. Founding principle #4 widened from "Emacs keybindings" → "Emacs and Vim keymaps"; §1 vision widened to "Emacs or Vim." Registered in `PLUGINS.md`. | Serves the widest editor audience (the "VSCode/Obsidian/Emacs/Vim in one" aim) on Coal's extensible substrate. The input-mode seam is *safe* (touches no files, keys, or network) and has **two real consumers from day one**, so — unlike the storage seam — it sits on the community-open side of the §8.2 guardrail and is justified now, not speculatively. |
+| 2026-07-21 | Encryption posture (§10.2 / §2 principle #3): encryption at rest walked back from a hard **requirement** to a **first-class, built-in, opt-in core feature — off by default**, enabled per vault; **plaintext vaults are equally first-class** (a developer pushes readable files to a company repo; hassle-averse users skip it). Founding principle #3 softened from "private by default" → "privacy built in, opt-in"; §1 vision updated. The §10.3/§10.4 **mechanism is unchanged**, and encryption **stays core** (not a plugin). Adopts a standing guardrail (§8.2): the most dangerous capabilities — storage-codec / physical-representation, key custody, startup gating, ambient host authority — are **first-party-only, never third-party-consentable**; a pluggable storage seam is deferred until a genuine second consumer exists. **[Superseded in part 2026-07-22 (kernel/plugin pivot): the opt-in / off-by-default posture and the first-party-only privileged guardrail stand, but encryption is now a **first-party plugin** — not core — that fills the storage-codec / startup-gate / key-custody seams, which are built now rather than deferred. See the 2026-07-22 entry and §10.2.]** | Optionality (not plugin-ness) was the real goal, and it is met without exposing the app's most dangerous seams to community plugins or building a general storage seam speculatively for one consumer; keeping encryption core changes the just-ratified mechanism the least. The guardrail keeps Coal's private-when-enabled posture from ever hinging on users judging un-judgeable "control all your files / hold your keys" consent dialogs. |
+| 2026-07-21 | Interaction model (§6 / §2 principle #4): **Emacs *and* Vim keymaps both ship out of the box**, chosen at **first run** (no baked-in default), declaratively switchable (§9), with **full feature parity** (every command bound in both, each modeled on the closest counterpart in its editor) and **fully-supported Vim modes**. Delivered as **bundled official plugins** over a core command-substrate + minibuffer + **input-mode seam**; the **minibuffer is unified** — Emacs `M-x`/`M-:`, Vim `:` ex line + `/` search + mode indicator. Founding principle #4 widened from "Emacs keybindings" → "Emacs and Vim keymaps"; §1 vision widened to "Emacs or Vim." Registered in `PLUGINS.md`. **[Superseded in part 2026-07-22 (kernel/plugin pivot): both keymaps now live in the **kernel**, not as bundled official plugins — the input layer is fundamental to a keyboard-first editor. They still bind through the public command/keybinding API, and community keymaps remain a safe extension. Removed from `PLUGINS.md`. See the 2026-07-22 entry and §6.]** | Serves the widest editor audience (the "VSCode/Obsidian/Emacs/Vim in one" aim) on Coal's extensible substrate. The input-mode seam is *safe* (touches no files, keys, or network) and has **two real consumers from day one**, so — unlike the storage seam — it sits on the community-open side of the §8.2 guardrail and is justified now, not speculatively. |
 | 2026-07-21 | v1 surface roster + workspace shell (§14): everything in `SPEC.md` + `TODO.md` is v1 (no deferred tier). The **workspace shell** is **hybrid** — a keyboard-first spine (minibuffer open; Emacs **windows** as the sole split primitive; per-window **tabs**) with a **left** file-tree sidebar and a **quick switcher**, all default-on; the **right** dock stays the §13 panels. The roster **adds**: the bidirectional **Links panel** (§13.14 extended — *Links to* outgoing = own-sidecar read, above *Linked from*; Dangling stays the outbound-broken alarm, so Links-to / Linked-from / Dangling are three disjoint surfaces), an internal-only **hover preview** (reuses the §13.14 peek engine), an **outline/TOC panel**, a **word-count** status element, the **quick switcher**, and **templates** (proposed official plugin, `PLUGINS.md`). Deep design of graph, embeds, search, tags, daily notes, templates, and the shell's keybindings/session-persistence each spin out as their own `TODO.md` sessions. Deliberate boundary: **no GUI properties editor** — frontmatter is edited as text (§7.1 / §2). Obsidian's separate tab-group abstraction is rejected (a window already models layout). | Owner-first dogfooding makes "v1" = "the owner can live in it," so the surface set is enumerated once as a build target rather than discovered ad hoc; the hybrid shell honors keyboard-first (§2 #4) without denying Obsidian switchers the tree/tabs. Surfacing connections **both** directions is the point of a PKM tool — the app should show the graph, not make you reconstruct it by scrolling — while the disjoint Links-to / Linked-from / Dangling split preserves §13.14's no-double-count invariant. Hover-preview and quick-switcher reuse existing mechanisms (peek §13.14; the §13.11 name set) rather than new machinery. |
+| 2026-07-22 | **Kernel/plugin pivot (§1/§2/§8; touches §4/§6/§7/§10/§13/§14).** Re-found the core/plugin split around a **minimal, general-purpose, keyboard-first kernel** (raw presentation + navigation; usable with zero plugins) and **re-home the entire feature set as bundled first-party plugins** on the public API (Markdown/Org + Live Preview, linking/PKM, **Git**, **encryption**, search, tags, templates, …). The kernel dogfoods the **same public API** (core-as-plugins made *literal*). **Both keymaps, the syntax-highlighting engine, and the workspace shell move into the kernel**; grammars are auto-activating passive-provider plugins; official feature plugins are bundled **off by default**. **Two-tier trust:** first-party bundled = fully trusted (only tier eligible for the privileged class); third-party = blocked-by-default (one global gate) + realm-bounded to declared, scoped, least-privilege caps under informed per-plugin consent. **Capability catalogue** (`document`/`vault`/`network`/`process`/`clipboard`) + **privileged class** (`storage-codec`/`startup-gate`/`key-custody`, first-party only; no `ambient`/raw-Node cap). Config surface = kernel-owned `.coal/config/` tree (`settings.toml` + `plugins.toml` roster + `plugins/<id>.toml`), replacing `.coal/config/PLUGINS.<ext>`. Manifest = `plugin.toml`; host API SemVer with an N-1 compatibility window + graceful degrade; lifecycle = lazy activation + hot enable/disable + kernel auto-disposal ledger + error isolation; third-party = pre-built-JS-only over open-source git repos, manual updates. **Supersedes in part** the 2026-07-21 "encryption stays core / storage seam deferred," "keymaps as bundled official plugins," "core-vs-plugin split stays open," and "`PLUGINS.<ext>`" decisions (marked above). Theming is a separate, queued design session. Full design: [`docs/superpowers/specs/2026-07-22-plugin-system-design.md`](docs/superpowers/specs/2026-07-22-plugin-system-design.md). | The prior spec baked PKM / encryption / git in as privileged **core**, so "core-as-plugins" was aspirational, not load-bearing. Re-homing them as first-party plugins makes it structural — a feature the flagship suite can't reach is an API gap **by construction** — and yields a small, fast, hackable substrate whose value *is* the extension API. It is a re-homing, **not a feature cull**: what changes is the layer, the delivery (opt-in), and the trust anchor (core-membership → first-party bundling). Encryption stays tractable because the privileged class it needs is reserved to first-party-audited code, and the kernel never learns crypto. Keymaps go to the kernel because a keyboard-first editor must be operable with zero plugins. |
