@@ -21,9 +21,9 @@ jobs:
     name: markdown links (advisory)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Check links
-        uses: lycheeverse/lychee-action@v2
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2
         with:
           args: "--offline --include-fragments --no-progress './**/*.md'"
           fail: true # fails THIS advisory job on broken links; does not block merge (not a required check)
