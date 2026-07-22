@@ -1,8 +1,10 @@
 # Coal
 
-A Linux-native, keyboard-first Markdown/Org editor — the *hands of Emacs* (central minibuffer, deep
-hackability, and your choice of **Emacs or Vim** keymaps) and the *head of Obsidian* (plain-text
-notes, links, backlinks, live preview).
+A minimal, Linux-native, keyboard-first text editor **whose value is its plugin API** — a small,
+hackable kernel usable with zero plugins, with the *hands of Emacs* (central minibuffer, deep
+hackability, your choice of **Emacs or Vim** keymaps) and the *head of Obsidian* (plain-text notes,
+links, backlinks, live preview) delivered on top as the bundled **first-party plugin suite**, speaking
+both Markdown and Org.
 
 > **Status: public, in active design — pre-build.** This README is an intentional placeholder; a
 > full, user-facing one will be written once the program is designed (tracked in [`TODO.md`](TODO.md)).
