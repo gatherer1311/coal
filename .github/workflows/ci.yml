@@ -12,6 +12,9 @@ on:
       - ".prettierrc.json"
       - ".prettierignore"
       - ".github/workflows/ci.yml"
+      - "e2e/**"
+      - "playwright.config.ts"
+      - "electron.vite.config.ts"
   # No path filter on pull_request: CI is a *required* check, and a required
   # check that never runs (because a PR didn't touch the filtered paths) leaves
   # the PR stuck forever. So CI runs on every PR to main.
@@ -53,3 +56,31 @@ jobs:
 
       - name: Format check
         run: npm run format:check
+
+  e2e:
+    name: browser + electron e2e
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium + OS deps
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: npm run build
+
+      - name: Browser tests
+        run: npm run test:browser
+
+      - name: Electron e2e (xvfb)
+        run: xvfb-run -a npm run test:e2e
