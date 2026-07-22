@@ -2,7 +2,7 @@
 import { app, dialog, Menu, shell } from "electron";
 import type { BrowserWindow, WebContents } from "electron";
 import { existsSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { IPC } from "../kernel/ipc/contract";
 import { FileService } from "./fileService";
 import { isTrustedUrl } from "./guards";
@@ -20,12 +20,13 @@ registerSchemes();
 // Keep dev/e2e off the release single-instance lock and profile (design §9).
 if (devUrl) app.setPath("userData", join(app.getPath("appData"), "coal-dev"));
 
-/** The first existing file path in an argv list, if any (design §2, §9). */
-function firstFileArg(argv: string[]): string | null {
+/** The first existing file path in an argv list, resolved against cwd (design §2, §9). */
+function firstFileArg(argv: string[], cwd: string): string | null {
   for (const arg of argv.slice(1)) {
     if (arg.startsWith("-")) continue;
     try {
-      if (existsSync(arg) && statSync(arg).isFile()) return arg;
+      const resolved = resolve(cwd, arg);
+      if (existsSync(resolved) && statSync(resolved).isFile()) return resolved;
     } catch {
       // ignore unreadable args
     }
@@ -43,8 +44,12 @@ if (!app.requestSingleInstanceLock()) {
   const allowedOrigins = devUrl ? [devUrl] : ["app://coal/"];
 
   const openInWindow = async (win: BrowserWindow, path: string): Promise<void> => {
-    const res = await fileService.openPath(path);
-    if (!res.canceled && !("binary" in res)) win.webContents.send(IPC.docOpened, res.doc);
+    try {
+      const res = await fileService.openPath(path);
+      if (!res.canceled && !("binary" in res)) win.webContents.send(IPC.docOpened, res.doc);
+    } catch (err) {
+      console.error("failed to open file:", err);
+    }
   };
 
   // Zero ambient authority for any web contents (design §3).
@@ -59,11 +64,11 @@ if (!app.requestSingleInstanceLock()) {
     contents.on("will-attach-webview", (event) => event.preventDefault());
   });
 
-  app.on("second-instance", (_event, argv) => {
+  app.on("second-instance", (_event, argv, workingDirectory) => {
     if (!mainWindow) return;
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.focus();
-    const path = firstFileArg(argv);
+    const path = firstFileArg(argv, workingDirectory);
     if (path) void openInWindow(mainWindow, path);
   });
 
@@ -83,7 +88,7 @@ if (!app.requestSingleInstanceLock()) {
       onQuit: () => mainWindow?.close(),
     });
 
-    const launchPath = firstFileArg(process.argv);
+    const launchPath = firstFileArg(process.argv, process.cwd());
     if (launchPath) {
       win.webContents.once("did-finish-load", () => void openInWindow(win, launchPath));
     }

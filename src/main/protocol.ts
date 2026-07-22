@@ -1,6 +1,6 @@
 // src/main/protocol.ts
 import { net, protocol } from "electron";
-import { join, normalize } from "node:path";
+import { join, normalize, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const RENDERER_DIR = join(import.meta.dirname, "../renderer");
@@ -20,7 +20,7 @@ export function handleAppProtocol(): void {
     const url = new URL(request.url);
     const rel = url.pathname === "/" ? "/index.html" : url.pathname;
     const filePath = normalize(join(RENDERER_DIR, rel));
-    if (!filePath.startsWith(RENDERER_DIR)) {
+    if (filePath !== RENDERER_DIR && !filePath.startsWith(RENDERER_DIR + sep)) {
       return new Response("forbidden", { status: 403 });
     }
     const res = await net.fetch(pathToFileURL(filePath).toString());
