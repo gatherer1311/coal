@@ -2,18 +2,6 @@
 
 > **Status:** Living document. This is the authoritative source the builder pulls from.
 > **Last updated:** 2026-07-22
->
-> Coal is a minimal, keyboard-first, Linux-native text editor **whose value is its plugin API**: a
-> small, fast, hackable **general-purpose kernel** — the *hands of Emacs* (central minibuffer, deep
-> hackability, your choice of **Emacs or Vim** keymaps) — that opens and edits **any** file format from
-> the keyboard with zero plugins, like Emacs, Vim, or VSCode. A rich opt-in **first-party plugin suite**
-> then adds the *head of Obsidian*: a full **Markdown**/**Org** PKM workspace (plain-text notes, links,
-> backlinks, live preview).
->
-> The concrete extensibility system — kernel boundary, capability model, trust tiers, manifest,
-> lifecycle — is designed in
-> [`docs/superpowers/specs/2026-07-22-plugin-system-design.md`](docs/superpowers/specs/2026-07-22-plugin-system-design.md);
-> §8 records the ratified decisions and the rest of this document is reconciled to that pivot.
 
 ---
 
