@@ -1,0 +1,23 @@
+name: Coverage (advisory)
+
+# Advisory only: reports coverage on PRs. Deliberately NOT in the main
+# ruleset's required checks — it never blocks a merge.
+on:
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    name: coverage (advisory)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run test:coverage
