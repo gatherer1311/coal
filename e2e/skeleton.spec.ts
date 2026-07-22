@@ -12,26 +12,48 @@ test("open -> edit -> save writes byte-exact changes -> quit", async () => {
   if (process.env["CI"]) args.push("--no-sandbox");
   const app = await electron.launch({ args });
 
-  // Playwright can't drive native GTK dialogs, so stub the open dialog in main.
-  await app.evaluate(({ dialog }, filePath) => {
-    dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filePath] });
-    // Never block on the unsaved-changes modal if a race leaves the doc dirty at close.
-    dialog.showMessageBoxSync = () => 1; // "Don't Save"
-  }, fixture);
+  try {
+    // Playwright can't drive native GTK dialogs, so stub the open dialog in main.
+    await app.evaluate(({ dialog }, filePath) => {
+      dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filePath] });
+      // Never block on the unsaved-changes modal if a race leaves the doc dirty at close.
+      dialog.showMessageBoxSync = () => 1; // "Don't Save"
+    }, fixture);
 
-  const window = await app.firstWindow();
-  await window.locator(".cm-content").waitFor();
-  await window.locator(".cm-content").click();
+    const window = await app.firstWindow();
+    await window.locator(".cm-content").waitFor();
+    await window.locator(".cm-content").click();
 
-  await window.keyboard.press("Control+O");
-  await expect(window.locator(".cm-content")).toContainText("hello");
+    await window.keyboard.press("Control+O");
+    await expect(window.locator(".cm-content")).toContainText("hello");
 
-  await window.keyboard.press("End");
-  await window.keyboard.type(" world");
-  await window.keyboard.press("Control+S");
+    await window.keyboard.press("End");
+    await window.keyboard.type(" world");
+    await window.keyboard.press("Control+S");
 
-  await expect.poll(async () => readFile(fixture, "utf-8")).toBe("hello world\n");
+    await expect.poll(async () => readFile(fixture, "utf-8")).toBe("hello world\n");
+  } finally {
+    await app.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
 
-  await app.close();
-  await rm(dir, { recursive: true, force: true });
+test("opens a file passed as a CLI argument", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "coal-e2e-"));
+  const fixture = join(dir, "cli.md");
+  await writeFile(fixture, "from cli\n", "utf-8");
+  const args = ["out/main/index.js", fixture];
+  if (process.env["CI"]) args.push("--no-sandbox");
+  const app = await electron.launch({ args });
+  try {
+    await app.evaluate(({ dialog }) => {
+      dialog.showMessageBoxSync = () => 0;
+    });
+    const window = await app.firstWindow();
+    await window.locator(".cm-content").waitFor();
+    await expect(window.locator(".cm-content")).toContainText("from cli");
+  } finally {
+    await app.close();
+    await rm(dir, { recursive: true, force: true });
+  }
 });

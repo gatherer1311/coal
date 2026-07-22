@@ -12,6 +12,7 @@ export interface IpcDeps {
   isTrustedSender(event: IpcMainInvokeEvent | IpcMainEvent): boolean;
   onSetDirty(dirty: boolean): void;
   onQuit(): void;
+  onDocPresent(): void;
 }
 
 export function registerIpc(deps: IpcDeps): void {
@@ -21,7 +22,9 @@ export function registerIpc(deps: IpcDeps): void {
     if (!win) return { canceled: true };
     const picked = await dialog.showOpenDialog(win, { properties: ["openFile"] });
     const path = picked.canceled || picked.filePaths.length === 0 ? null : picked.filePaths[0]!;
-    return deps.fileService.openPath(path);
+    const result = await deps.fileService.openPath(path);
+    if (!result.canceled && !("binary" in result)) deps.onDocPresent();
+    return result;
   });
 
   ipcMain.handle(IPC.fileSave, async (event, payload: unknown): Promise<SaveResult> => {

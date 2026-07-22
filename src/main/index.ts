@@ -22,7 +22,8 @@ if (devUrl) app.setPath("userData", join(app.getPath("appData"), "coal-dev"));
 
 /** The first existing file path in an argv list, resolved against cwd (design §2, §9). */
 function firstFileArg(argv: string[], cwd: string): string | null {
-  for (const arg of argv.slice(1)) {
+  const start = app.isPackaged ? 1 : 2;
+  for (const arg of argv.slice(start)) {
     if (arg.startsWith("-")) continue;
     try {
       const resolved = resolve(cwd, arg);
@@ -40,13 +41,17 @@ if (!app.requestSingleInstanceLock()) {
   let mainWindow: BrowserWindow | null = null;
   let dirty = false;
   let forceQuit = false;
+  let hasDoc = false;
   const fileService = new FileService();
   const allowedOrigins = devUrl ? [devUrl] : ["app://coal/"];
 
   const openInWindow = async (win: BrowserWindow, path: string): Promise<void> => {
     try {
       const res = await fileService.openPath(path);
-      if (!res.canceled && !("binary" in res)) win.webContents.send(IPC.docOpened, res.doc);
+      if (!res.canceled && !("binary" in res)) {
+        win.webContents.send(IPC.docOpened, res.doc);
+        hasDoc = true;
+      }
     } catch (err) {
       console.error("failed to open file:", err);
     }
@@ -86,6 +91,9 @@ if (!app.requestSingleInstanceLock()) {
         dirty = value;
       },
       onQuit: () => mainWindow?.close(),
+      onDocPresent: () => {
+        hasDoc = true;
+      },
     });
 
     const launchPath = firstFileArg(process.argv, process.cwd());
@@ -96,18 +104,35 @@ if (!app.requestSingleInstanceLock()) {
     win.on("close", (event) => {
       if (forceQuit || !dirty) return;
       event.preventDefault();
-      const choice = dialog.showMessageBoxSync(win, {
-        type: "warning",
-        buttons: ["Save", "Don't Save", "Cancel"],
-        defaultId: 0,
-        cancelId: 2,
-        message: "You have unsaved changes.",
-      });
-      if (choice === 1) {
-        forceQuit = true;
-        win.close();
-      } else if (choice === 0) {
-        win.webContents.send(IPC.menuCommand, "core.file.save");
+      if (hasDoc) {
+        const choice = dialog.showMessageBoxSync(win, {
+          type: "warning",
+          buttons: ["Save", "Don't Save", "Cancel"],
+          defaultId: 0,
+          cancelId: 2,
+          message: "You have unsaved changes.",
+        });
+        if (choice === 0) {
+          // Renderer saves, then calls app.quit(); by then dirty is false, so the
+          // re-entered close guard falls through and the window closes.
+          win.webContents.send(IPC.saveAndQuit);
+        } else if (choice === 1) {
+          forceQuit = true;
+          win.close();
+        }
+      } else {
+        // No file backs the buffer (typed into the empty editor); Save is impossible.
+        const choice = dialog.showMessageBoxSync(win, {
+          type: "warning",
+          buttons: ["Don't Save", "Cancel"],
+          defaultId: 1,
+          cancelId: 1,
+          message: "You have unsaved changes.",
+        });
+        if (choice === 0) {
+          forceQuit = true;
+          win.close();
+        }
       }
     });
 

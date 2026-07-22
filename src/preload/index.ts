@@ -30,6 +30,11 @@ const api: CoalApi = {
     ipcRenderer.on(IPC.docOpened, listener);
     return () => ipcRenderer.removeListener(IPC.docOpened, listener);
   },
+  onSaveAndQuit: (handler: () => void): (() => void) => {
+    const listener = (): void => handler();
+    ipcRenderer.on(IPC.saveAndQuit, listener);
+    return () => ipcRenderer.removeListener(IPC.saveAndQuit, listener);
+  },
 };
 
 contextBridge.exposeInMainWorld("coal", api);

@@ -7,6 +7,7 @@ export const IPC = {
   fileSave: "coal:file.save",
   docSetDirty: "coal:doc.setDirty",
   docOpened: "coal:doc.opened",
+  saveAndQuit: "coal:app.saveAndQuit",
   appQuit: "coal:app.quit",
   menuCommand: "coal:menu.command",
 } as const;
@@ -45,4 +46,6 @@ export interface CoalApi {
   onMenuCommand(handler: (commandId: string) => void): () => void;
   /** Files opened from the CLI / a second instance are pushed from main. */
   onDocOpened(handler: (doc: OpenDocResult) => void): () => void;
+  /** Main asks the renderer to save (if possible) then quit (the unsaved-changes dialog's Save). */
+  onSaveAndQuit(handler: () => void): () => void;
 }

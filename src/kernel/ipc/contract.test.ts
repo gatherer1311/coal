@@ -15,6 +15,7 @@ describe("IPC contract (design §3 typed channels)", () => {
       fileSave: "coal:file.save",
       docSetDirty: "coal:doc.setDirty",
       docOpened: "coal:doc.opened",
+      saveAndQuit: "coal:app.saveAndQuit",
       appQuit: "coal:app.quit",
       menuCommand: "coal:menu.command",
     });

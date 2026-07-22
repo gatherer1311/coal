@@ -92,5 +92,20 @@ window.coal.onDocOpened((doc) => {
   currentDocId = doc.id;
 });
 
+// The quit dialog's "Save" asks us to save then quit. On success we mark clean
+// (which clears main's dirty flag) and request quit; a failed save leaves the
+// window open. Save is only offered when a doc backs the buffer, so currentDocId
+// is set here.
+window.coal.onSaveAndQuit(() => {
+  void (async () => {
+    if (currentDocId !== null && editor.facade.isDirty()) {
+      const res = await window.coal.file.save({ id: currentDocId, text: editor.facade.getText() });
+      if (!res.ok) return;
+      editor.facade.markClean();
+    }
+    window.coal.app.quit();
+  })();
+});
+
 window.coal.onMenuCommand(dispatch);
 editor.facade.focus();
