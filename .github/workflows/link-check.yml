@@ -1,0 +1,29 @@
+name: Link check (advisory)
+
+# Advisory: flags broken links in Markdown. Not a required check, so it never
+# blocks a merge. Runs in --offline mode: it deterministically validates
+# relative links and heading anchors across our docs with no network calls, so
+# it never goes red for a rate-limit or a transient external outage. External
+# URL liveness is intentionally out of scope for now and can be layered on later.
+on:
+  pull_request:
+    branches: ["main"]
+    paths: ["**/*.md"]
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  links:
+    name: markdown links (advisory)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: "--offline --include-fragments --no-progress './**/*.md'"
+          fail: true # fails THIS advisory job on broken links; does not block merge (not a required check)
