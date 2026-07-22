@@ -13,15 +13,18 @@ test("open -> edit -> save writes byte-exact changes -> quit", async () => {
   const app = await electron.launch({ args });
 
   try {
-    // Playwright can't drive native GTK dialogs, so stub the open dialog in main.
+    const window = await app.firstWindow();
+    await window.locator(".cm-content").waitFor();
+
+    // Stub native dialogs only after the app is fully up — evaluating during the
+    // startup navigation can hit a destroyed execution context. The stub is still
+    // in place before Ctrl+O triggers the open. Playwright can't drive GTK dialogs.
     await app.evaluate(({ dialog }, filePath) => {
       dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filePath] });
       // Never block on the unsaved-changes modal if a race leaves the doc dirty at close.
       dialog.showMessageBoxSync = () => 1; // "Don't Save"
     }, fixture);
 
-    const window = await app.firstWindow();
-    await window.locator(".cm-content").waitFor();
     await window.locator(".cm-content").click();
 
     await window.keyboard.press("Control+O");
@@ -46,11 +49,11 @@ test("opens a file passed as a CLI argument", async () => {
   if (process.env["CI"]) args.push("--no-sandbox");
   const app = await electron.launch({ args });
   try {
+    const window = await app.firstWindow();
+    await window.locator(".cm-content").waitFor();
     await app.evaluate(({ dialog }) => {
       dialog.showMessageBoxSync = () => 0;
     });
-    const window = await app.firstWindow();
-    await window.locator(".cm-content").waitFor();
     await expect(window.locator(".cm-content")).toContainText("from cli");
   } finally {
     await app.close();
