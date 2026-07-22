@@ -8,6 +8,20 @@
 
 **Tech Stack:** Node >=22, TypeScript 7, Vitest 4, ESLint 9 (flat config) + typescript-eslint, GitHub Actions, `gh` CLI.
 
+## Execution status (2026-07-22)
+
+Executed end-to-end in one session, each check a scoped PR through the locked-`main` flow:
+
+- **Task 3 — enforced `npm audit`** — shipped (#32). Rides the required CI job; tree at 0 vulnerabilities.
+- **Task 2 — advisory coverage** — shipped (#33). Separate non-required workflow.
+- **Task 4 — advisory Markdown link-check** — shipped (#34); verified green on the full docs corpus via `workflow_dispatch` (lychee `--offline`).
+- **Task 5 — pin Actions by SHA** — shipped (#35). All `uses:` pinned; the required job re-ran green on the pins.
+- **Task 6 — secret scanning + push protection** — enabled (repo settings; not a PR).
+- **Task 7 — coverage-gap backfill** — **not needed**: `overlay` is already at 100% (160/160 stmts, 76/76 branches, 31/31 funcs, 142/142 lines). No gaps to fill.
+- **Task 1 — ESLint** — **deferred**: typescript-eslint hard-blocks TypeScript 7 (this repo's compiler) with a runtime guard; no published version supports it. Tracked in **#36**. `tsc --noEmit` (strict) remains the type-level gate meanwhile.
+
+Side effect observed: CodeQL woke up as pre-staged (a `.ts` change tripped its path filter) and now runs advisory on PRs.
+
 ## Global Constraints
 
 - Node `>=22`; `"type": "module"`; install with `npm ci` only.
@@ -20,7 +34,13 @@
 
 ---
 
-### Task 1: ESLint + typescript-eslint (enforced)
+### Task 1: ESLint + typescript-eslint (enforced) — DEFERRED (#36)
+
+> Deferred: typescript-eslint refuses to run on TypeScript 7 (this repo's compiler) via a hard
+> runtime guard, and no published version supports it (upstream
+> [typescript-eslint#10940](https://github.com/typescript-eslint/typescript-eslint/issues/10940)).
+> The steps below stand for when TS 7 is supported (or if the side-by-side TS 6 approach is adopted).
+> Tracked in #36.
 
 **Files:**
 - Create: `eslint.config.js` (ESLint 9 flat config, ESM)
@@ -394,7 +414,10 @@ Expected: both `secret_scanning` and `secret_scanning_push_protection` show `"st
 
 ---
 
-### Task 7: Close overlay coverage gaps surfaced by Task 2
+### Task 7: Close overlay coverage gaps surfaced by Task 2 — SATISFIED (no gaps)
+
+> Satisfied with no changes: the Task 2 coverage run shows `overlay` already at 100% line, branch,
+> and function coverage. The method below stands for future modules that land below 100%.
 
 **Files:**
 - Modify/Create: `src/overlay/*.test.ts` as the coverage report dictates
