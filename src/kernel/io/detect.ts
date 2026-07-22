@@ -51,15 +51,22 @@ export function detectEncoding(bytes: Uint8Array): EncodingSniff | null {
 export function detectEol(raw: string): { eol: Eol; mixedEol: boolean } {
   let crlf = 0;
   let loneLf = 0;
+  let loneCr = 0;
   for (let i = 0; i < raw.length; i++) {
-    if (raw[i] === "\n") {
+    const ch = raw[i];
+    if (ch === "\n") {
       if (i > 0 && raw[i - 1] === "\r") crlf++;
       else loneLf++;
+    } else if (ch === "\r" && raw[i + 1] !== "\n") {
+      loneCr++;
     }
   }
   // Tie (equal CRLF and lone-LF counts) resolves to CRLF; newline-free text stays LF.
   const eol: Eol = crlf > 0 && crlf >= loneLf ? "crlf" : "lf";
-  return { eol, mixedEol: crlf > 0 && loneLf > 0 };
+  // Any lone-CR (classic-Mac, out of the LF/CRLF scope) or a CRLF+LF mix is
+  // flagged so the save path surfaces it instead of silently normalizing (#44).
+  const mixedEol = loneCr > 0 || (crlf > 0 && loneLf > 0);
+  return { eol, mixedEol };
 }
 
 export function hasFinalNewline(raw: string): boolean {

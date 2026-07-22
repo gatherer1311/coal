@@ -62,8 +62,17 @@ describe("detectEol / hasFinalNewline (design §7)", () => {
     expect(detectEol("abc")).toEqual({ eol: "lf", mixedEol: false });
   });
 
+  test("flags lone-CR (classic-Mac) as mixed so the save path surfaces it (#44)", () => {
+    // Pure lone-CR: out of the LF/CRLF scope, so flag it as mixed rather than
+    // silently normalizing \r -> \n on save.
+    expect(detectEol("a\rb\rc")).toEqual({ eol: "lf", mixedEol: true });
+    // CRLF content with a stray lone CR is also mixed.
+    expect(detectEol("a\r\nb\rc")).toEqual({ eol: "crlf", mixedEol: true });
+  });
+
   test("detects a trailing newline", () => {
     expect(hasFinalNewline("a\n")).toBe(true);
+    expect(hasFinalNewline("a\r")).toBe(true);
     expect(hasFinalNewline("a")).toBe(false);
     expect(hasFinalNewline("")).toBe(false);
   });
