@@ -1,0 +1,109 @@
+# Kernel — the walking skeleton
+
+The irreducible **kernel**: a real, keyboard-first editor that opens, edits, and saves a
+single file **byte-for-byte**, driven from the keyboard, usable with zero plugins. It is the
+first slice of the minimal-core architecture (`SPEC.md` §8), and it **dogfoods its own public
+command API** — the editor's own open/save/quit are registered through the same registry a
+plugin would use, never a private back door.
+
+Grounded in [`../superpowers/specs/2026-07-22-kernel-walking-skeleton-design.md`](../superpowers/specs/2026-07-22-kernel-walking-skeleton-design.md)
+(design) and [`../superpowers/plans/2026-07-22-kernel-walking-skeleton.md`](../superpowers/plans/2026-07-22-kernel-walking-skeleton.md)
+(the implementation plan). This page maps what exists today.
+
+## Process model & trust boundary
+
+Three processes, hexagonal (ports-and-adapters):
+
+- **main** (Node, privileged) — owns **all filesystem** and, later, key custody. The renderer
+  never imports `fs` and never holds a real path; it holds an opaque doc `id` + decoded text.
+  This is the exact boundary the future encryption `storage-codec`/`key-custody` seams reuse
+  (design §11).
+- **preload** — one bundled **CJS** file that does only `contextBridge.exposeInMainWorld("coal", api)`,
+  a small typed object of narrow methods. It never exposes `ipcRenderer` or a generic `invoke`.
+- **renderer** (sandboxed) — CodeMirror 6 + the command spine + the composition root.
+
+`src/kernel/` is **pure**: no Electron, Node, or DOM imports (the byte-exact codec uses only
+`TextEncoder`/`TextDecoder`/`Uint8Array`). `main`/`preload`/`renderer` are thin adapters over it,
+so ~80–90% of the logic is unit-tested in plain Node.
+
+## Module map
+
+### `src/kernel/` — pure, framework-free core
+
+| File | What it provides |
+|---|---|
+| `command/disposable.ts` | `Disposable` + `DisposableStore` — the auto-disposal ledger (reverse-order, idempotent). |
+| `command/types.ts` | `EditorFacade`, `CommandContext`, `Command`, `Keybinding`. |
+| `command/commandRegistry.ts` | `CommandRegistry` — `registerCommand` → `Disposable` (throws on dup id); the single `executeCommand(id, ctx)` choke point (throws on unknown id, no-ops when `isEnabled` is false). |
+| `command/keybindingRegistry.ts` | `KeybindingRegistry` — keys reference commands by string id; resolution/fall-through is the consumer's job. |
+| `io/types.ts` | `Encoding`, `Eol`, `DocMeta`, `DecodeResult`. |
+| `io/detect.ts` | `detectEncoding` (BOM + NUL-parity heuristic), `detectEol` (LF/CRLF; lone-CR → `mixedEol`), `hasFinalNewline`. |
+| `io/codec.ts` | `decode(bytes)` → LF-normalized text + metadata; `encode(text, meta)` → bytes. For a non-mixed file, `encode(decode(b).text, decode(b).meta)` byte-equals `b`. |
+| `ipc/contract.ts` | The `IPC` channel-name map + request/response types + the `CoalApi` interface exposed on `window.coal`. Shared by main + preload. |
+
+### `src/main/` — Electron main-process adapters
+
+| File | What it provides |
+|---|---|
+| `fileService.ts` | Owns open files: decode on open (opaque `doc-N` id), encode + **atomic** save (`write-file-atomic` + directory fsync, symlink-through, mode-preserving), and a pristine-buffer no-op so an unedited save is byte-exact even for mixed-EOL files. |
+| `guards.ts` | Pure IPC validators: `isSaveRequest`, `isTrustedUrl`. |
+| `ipc.ts` | `registerIpc(deps)` — wires `ipcMain.handle`/`on` for every channel; **validates `senderFrame` and the payload before acting**. |
+| `window.ts` | `createWindow` — hardened, explicitly-pinned `webPreferences`. |
+| `protocol.ts` | Serves the built renderer from a custom `app://` scheme with a strict CSP header and path-containment. |
+| `menu.ts` | Native menu whose items IPC a `menu-command` into the renderer's `executeCommand` (`registerAccelerator:false` — never two sources of truth). |
+| `index.ts` | App lifecycle: single-instance lock, navigation lockdown, CLI/second-instance file open, and the unsaved-changes **Save-then-quit** guard. |
+
+### `src/preload/` & `src/renderer/`
+
+| File | What it provides |
+|---|---|
+| `preload/index.ts` | The `coal` bridge implementing `CoalApi`. |
+| `renderer/coal.d.ts` | `window.coal: CoalApi` typing. |
+| `renderer/editor.ts` | `createEditor` — mounts CM6, exposes the `EditorFacade`, and **generates the CM keymap from the keybinding registry** (a Compartment); tracks dirty. |
+| `renderer/main.ts` | The composition root: registers `core.file.open/save/quit` through the public API, binds keys, wires the window-level global keydown, `onDocOpened`, and `onSaveAndQuit`. |
+| `renderer/index.html` | Root + the fill-the-frame style; CSP is applied by the `app://` handler, not a meta tag. |
+
+## Key flows
+
+- **Open.** `Ctrl-o` / menu / CLI arg → `core.file.open` → `coal.file.open()` → main shows the GTK
+  dialog, `fileService.openPath` reads + decodes, returns `{ id, text, meta }`. The renderer sets
+  the editor text and remembers `currentDocId`. A CLI/second-instance path is pushed via `docOpened`.
+- **Byte-exact save.** `Ctrl-s` → `core.file.save` → `coal.file.save({ id, text })` → main. If the
+  text is unchanged, the **pristine bytes** are written back verbatim; otherwise `encode(text, meta)`
+  re-applies the recorded encoding/BOM/EOL. Both codecs (future storage-codec, then text) live in
+  main; the renderer only ever sees decoded text.
+- **Command dispatch.** One choke point: keys (CM6 keymap generated from the registry), the native
+  menu, and the window-level global handler all route through `executeCommand`. The kernel registers
+  its own commands through that exact public API.
+- **Quit guard.** On close with unsaved changes, main shows Save / Don't-Save / Cancel (Save is
+  omitted when no file backs the buffer). "Save" asks the renderer to save then quit; a failed save
+  leaves the window open.
+
+## Security posture (design §3)
+
+- Hardened, explicitly-pinned `webPreferences` (`sandbox`, `contextIsolation`, `nodeIntegration:false`,
+  no webview, no `@electron/remote`) + `app.enableSandbox()`.
+- The preload exposes only the typed `CoalApi`; the renderer has zero ambient authority.
+- Every IPC handler validates the sender frame and the payload before acting.
+- Renderer served from `app://` (not `file://`) with a strict CSP; navigation is locked down
+  (`will-navigate`/`setWindowOpenHandler`/`will-attach-webview`).
+
+## Testing
+
+Three tiers, all green in CI on every code PR:
+
+- **Node (Vitest `node`)** — the pure kernel + `fileService`/`guards`, TDD. The bulk.
+- **Browser (Vitest `browser`, real Chromium)** — CM6 keymap/state and the editor façade.
+- **e2e (Playwright `_electron`, under `xvfb`)** — the built app: open → edit → save → assert
+  the file's bytes → quit, and a CLI-arg-open smoke.
+
+Run: `npm test` (node), `npm run test:browser`, `npm run test:e2e`; `npm run typecheck`,
+`npm run format:check`. Build: `npm run build`; dev: `npm run dev`.
+
+## Not yet built
+
+Per the design's build sequence (§1.1), the kernel still thickens: the unified minibuffer, both
+Emacs/Vim keymaps + the first-run prompt, the config tree + Settings, the plugin loader / capability
+broker / host API, the syntax-highlighting engine, the workspace shell, and the privileged
+startup/storage seams. `src/overlay/` stays untouched — it becomes the linking plugin's core once
+the extension substrate exists.
