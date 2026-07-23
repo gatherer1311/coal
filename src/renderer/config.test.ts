@@ -44,4 +44,23 @@ describe("ConfigClient (design §6 reactive replica)", () => {
     expect(seen).toHaveLength(1);
     expect(seen[0]?.settings.keymap).toBe("emacs");
   });
+
+  test("a throwing listener does not stop later listeners or the update", async () => {
+    const { api, fireChange } = fakeApi({ settings: {}, diagnostics: [] });
+    const client = new ConfigClient(api);
+    await client.init();
+
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    client.onChange(() => {
+      throw new Error("boom");
+    });
+    let secondFired = false;
+    client.onChange(() => {
+      secondFired = true;
+    });
+
+    fireChange({ settings: { keymap: "vim" }, diagnostics: [] });
+    expect(secondFired).toBe(true);
+    expect(client.settings).toEqual({ keymap: "vim" });
+  });
 });

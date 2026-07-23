@@ -19,8 +19,7 @@ export class ConfigClient {
   async init(): Promise<ConfigSnapshot> {
     this.#snapshot = await this.#api.config.load();
     this.#api.onConfigChanged((snapshot) => {
-      this.#snapshot = snapshot;
-      for (const listener of this.#listeners) listener(snapshot);
+      this.#notify(snapshot);
     });
     return this.#snapshot;
   }
@@ -42,5 +41,18 @@ export class ConfigClient {
 
   reload(): Promise<ConfigSnapshot> {
     return this.#api.config.reload();
+  }
+
+  /** Store the new snapshot and fan it out. Isolate each listener so a
+   *  throwing subscriber can't stop the others (mirrors configService#emit). */
+  #notify(snapshot: ConfigSnapshot): void {
+    this.#snapshot = snapshot;
+    for (const listener of this.#listeners) {
+      try {
+        listener(snapshot);
+      } catch (err) {
+        console.error("config change listener threw:", err);
+      }
+    }
   }
 }
