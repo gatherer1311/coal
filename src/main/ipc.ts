@@ -2,12 +2,14 @@
 import { dialog, ipcMain } from "electron";
 import type { BrowserWindow, IpcMainEvent, IpcMainInvokeEvent } from "electron";
 import { IPC } from "../kernel/ipc/contract";
-import type { OpenResult, SaveResult } from "../kernel/ipc/contract";
+import type { ConfigSnapshot, OpenResult, SaveResult } from "../kernel/ipc/contract";
+import type { ConfigService } from "./configService";
 import type { FileService } from "./fileService";
-import { isSaveRequest } from "./guards";
+import { isConfigSetRequest, isSaveRequest } from "./guards";
 
 export interface IpcDeps {
   fileService: FileService;
+  configService: ConfigService;
   getWindow(): BrowserWindow | null;
   isTrustedSender(event: IpcMainInvokeEvent | IpcMainEvent): boolean;
   onSetDirty(dirty: boolean): void;
@@ -41,5 +43,30 @@ export function registerIpc(deps: IpcDeps): void {
   ipcMain.on(IPC.appQuit, (event) => {
     if (!deps.isTrustedSender(event)) return;
     deps.onQuit();
+  });
+
+  const emptySnapshot: ConfigSnapshot = { settings: {}, diagnostics: [] };
+
+  ipcMain.handle(IPC.configLoad, async (event): Promise<ConfigSnapshot> => {
+    if (!deps.isTrustedSender(event)) return emptySnapshot;
+    return deps.configService.load();
+  });
+
+  ipcMain.handle(IPC.configSet, async (event, payload: unknown) => {
+    if (!deps.isTrustedSender(event)) return { ok: false, error: "untrusted sender" };
+    if (!isConfigSetRequest(payload)) return { ok: false, error: "invalid config set request" };
+    return deps.configService.set(payload.patch);
+  });
+
+  ipcMain.handle(IPC.configReload, async (event): Promise<ConfigSnapshot> => {
+    if (!deps.isTrustedSender(event)) return emptySnapshot;
+    return deps.configService.reload();
+  });
+
+  ipcMain.handle(IPC.configOpen, async (event): Promise<OpenResult> => {
+    if (!deps.isTrustedSender(event)) return { canceled: true };
+    const result = await deps.fileService.openPath(deps.configService.path);
+    if (!result.canceled && !("binary" in result)) deps.onDocPresent();
+    return result;
   });
 }

@@ -4,6 +4,7 @@ import type { BrowserWindow, WebContents } from "electron";
 import { existsSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { IPC } from "../kernel/ipc/contract";
+import { ConfigService } from "./configService";
 import { FileService } from "./fileService";
 import { isTrustedUrl } from "./guards";
 import { registerIpc } from "./ipc";
@@ -43,6 +44,7 @@ if (!app.requestSingleInstanceLock()) {
   let forceQuit = false;
   let hasDoc = false;
   const fileService = new FileService();
+  const configService = new ConfigService(app.getPath("userData"));
   // Trailing slash makes the prefix an origin boundary, so a look-alike host
   // (e.g. localhost:5173.evil) can't satisfy the startsWith trust check (design §3).
   const allowedOrigins = devUrl ? [devUrl.endsWith("/") ? devUrl : `${devUrl}/`] : ["app://coal/"];
@@ -85,8 +87,16 @@ if (!app.requestSingleInstanceLock()) {
     mainWindow = win;
     Menu.setApplicationMenu(buildMenu(win));
 
+    void configService
+      .load() // materialize on first run, before the renderer asks
+      .catch((err) => console.error("initial config load failed:", err));
+    configService.onDidChangeConfig((snapshot) => {
+      mainWindow?.webContents.send(IPC.configChanged, snapshot);
+    });
+
     registerIpc({
       fileService,
+      configService,
       getWindow: () => mainWindow,
       isTrustedSender: (event) => isTrustedUrl(event.senderFrame?.url, allowedOrigins),
       onSetDirty: (value) => {

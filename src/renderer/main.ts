@@ -4,6 +4,7 @@ import { KeybindingRegistry } from "../kernel/command/keybindingRegistry";
 import { DisposableStore } from "../kernel/command/disposable";
 import type { CommandContext } from "../kernel/command/types";
 import { createEditor } from "./editor";
+import { ConfigClient } from "./config";
 import { Minibuffer } from "./minibuffer";
 
 const root = document.getElementById("root");
@@ -19,6 +20,18 @@ const keys = new KeybindingRegistry();
 const editor = createEditor(root, (isDirty) => window.coal.doc.setDirty(isDirty));
 const minibuffer = new Minibuffer(document.body);
 const ctx: CommandContext = { editor: editor.facade };
+
+const config = new ConfigClient(window.coal);
+// Reflect the loaded keymap into the DOM — the reactive seam step 4's keymap
+// layer consumes (unset shows as ""). Also the e2e's observable.
+const reflectKeymap = (): void => {
+  document.body.dataset["coalKeymap"] = config.settings.keymap ?? "";
+};
+config.onChange(reflectKeymap);
+void config
+  .init()
+  .then(reflectKeymap)
+  .catch((err) => console.error("config init failed:", err));
 
 store.add(
   commands.registerCommand({
@@ -73,6 +86,35 @@ store.add(
         placeholder: "Run a command",
       });
       if (pick) await commands.executeCommand(pick.id, c);
+    },
+  }),
+);
+
+// Opens settings.toml as a normal editor doc — a byte-exact fileService save
+// path, separate from config.set's preserving patch. An open settings buffer is
+// NOT refreshed by core.config.reload or external edits until live file-watching
+// lands (a committed follow-up), so saving a stale buffer can overwrite newer
+// on-disk content. Acceptable for now; revisit with live-watch.
+store.add(
+  commands.registerCommand({
+    id: "core.config.open",
+    title: "Open Settings (settings.toml)",
+    run: async () => {
+      const result = await window.coal.config.openInEditor();
+      if (result.canceled) return;
+      if ("binary" in result) return;
+      editor.facade.setText(result.doc.text);
+      currentDocId = result.doc.id;
+    },
+  }),
+);
+
+store.add(
+  commands.registerCommand({
+    id: "core.config.reload",
+    title: "Reload Settings",
+    run: async () => {
+      await config.reload();
     },
   }),
 );
