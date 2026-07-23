@@ -64,6 +64,20 @@ describe("ConfigService (design §3/§6/§9 global config layer)", () => {
     expect(await readFile(svc.path, "utf-8")).toBe(bad); // never clobbered
   });
 
+  test("a throwing listener does not fail the write, and other listeners still fire", async () => {
+    const svc = new ConfigService(dir);
+    await svc.load();
+    let secondFired = false;
+    svc.onDidChangeConfig(() => {
+      throw new Error("listener boom");
+    });
+    svc.onDidChangeConfig(() => {
+      secondFired = true;
+    });
+    expect(await svc.set({ keymap: "vim" })).toEqual({ ok: true });
+    expect(secondFired).toBe(true);
+  });
+
   test("set emits on success; load does not emit", async () => {
     const svc = new ConfigService(dir);
     let emitted = 0;

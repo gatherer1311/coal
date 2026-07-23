@@ -99,6 +99,14 @@ export class ConfigService {
   }
 
   #emit(): void {
-    for (const listener of this.#listeners) listener(this.#snapshot);
+    // A throwing subscriber must never fail a durable write or stop other
+    // listeners: isolate each callback so #emit() itself can never throw.
+    for (const listener of this.#listeners) {
+      try {
+        listener(this.#snapshot);
+      } catch (err) {
+        console.error("config change listener threw:", err);
+      }
+    }
   }
 }
