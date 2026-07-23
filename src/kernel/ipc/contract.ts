@@ -1,6 +1,7 @@
 // src/kernel/ipc/contract.ts
 import type { DocMeta } from "../io/types";
 import type { ConfigSnapshot, KernelSettings } from "../config/types";
+export type { ConfigSnapshot, KernelSettings } from "../config/types";
 
 /** IPC channel names. Every method on CoalApi wraps exactly one of these (design §3). */
 export const IPC = {
