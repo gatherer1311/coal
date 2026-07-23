@@ -142,5 +142,8 @@ window.coal.onSaveAndQuit(() => {
   })();
 });
 
-window.coal.onMenuCommand(dispatch);
+window.coal.onMenuCommand((id) => {
+  if (minibuffer.isOpen()) return; // the minibuffer owns input while open (design §8)
+  dispatch(id);
+});
 editor.facade.focus();
