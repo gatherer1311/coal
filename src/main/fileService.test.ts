@@ -60,6 +60,17 @@ describe("FileService (design §7 byte-exact save in main)", () => {
     expect(await svc.save("doc-999", "x")).toEqual({ ok: false, error: "unknown doc: doc-999" });
   });
 
+  test("has(id) reports whether a doc is open", async () => {
+    const file = join(dir, "note.md");
+    await writeFile(file, Buffer.from("hi\n", "utf-8"));
+    const svc = new FileService();
+    expect(svc.has("doc-1")).toBe(false);
+    const res = await svc.openPath(file);
+    if (res.canceled || "binary" in res) throw new Error("expected text doc");
+    expect(svc.has(res.doc.id)).toBe(true);
+    expect(svc.has("nope")).toBe(false);
+  });
+
   test("an unedited save of a mixed-EOL file is byte-exact (pristine no-op, design §7)", async () => {
     const file = join(dir, "mixed.md");
     const original = Buffer.from("a\r\nb\nc\r\n", "utf-8"); // mixed CRLF + LF

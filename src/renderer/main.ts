@@ -98,12 +98,20 @@ window.coal.onDocOpened((doc) => {
 // is set here.
 window.coal.onSaveAndQuit(() => {
   void (async () => {
-    if (currentDocId !== null && editor.facade.isDirty()) {
-      const res = await window.coal.file.save({ id: currentDocId, text: editor.facade.getText() });
-      if (!res.ok) return;
-      editor.facade.markClean();
+    try {
+      if (currentDocId !== null && editor.facade.isDirty()) {
+        const res = await window.coal.file.save({
+          id: currentDocId,
+          text: editor.facade.getText(),
+        });
+        if (!res.ok) return; // save failed — leave the window open
+        editor.facade.markClean();
+      }
+      window.coal.app.quit();
+    } catch (err) {
+      // Never leave a rejected save-and-quit unhandled; stay open on error.
+      console.error("save-and-quit failed:", err);
     }
-    window.coal.app.quit();
   })();
 });
 
