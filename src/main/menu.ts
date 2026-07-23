@@ -35,5 +35,16 @@ export function buildMenu(win: BrowserWindow): Menu {
         },
       ],
     },
+    {
+      label: "Commands",
+      submenu: [
+        {
+          label: "Run Command…",
+          accelerator: "CmdOrCtrl+Shift+P",
+          registerAccelerator: false,
+          click: send("core.command.execute"),
+        },
+      ],
+    },
   ]);
 }

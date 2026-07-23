@@ -4,6 +4,7 @@ import { KeybindingRegistry } from "../kernel/command/keybindingRegistry";
 import { DisposableStore } from "../kernel/command/disposable";
 import type { CommandContext } from "../kernel/command/types";
 import { createEditor } from "./editor";
+import { Minibuffer } from "./minibuffer";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("missing #root element");
@@ -16,6 +17,7 @@ const store = new DisposableStore();
 const commands = new CommandRegistry();
 const keys = new KeybindingRegistry();
 const editor = createEditor(root, (isDirty) => window.coal.doc.setDirty(isDirty));
+const minibuffer = new Minibuffer(document.body);
 const ctx: CommandContext = { editor: editor.facade };
 
 store.add(
@@ -52,9 +54,33 @@ store.add(
   }),
 );
 
+store.add(
+  commands.registerCommand({
+    id: "core.command.execute",
+    title: "Run Command…",
+    run: async (c) => {
+      const items = commands
+        .getCommands()
+        .filter((cmd) => !cmd.isEnabled || cmd.isEnabled(c)) // only runnable commands (design §7)
+        .map((cmd) => ({
+          id: cmd.id,
+          label: cmd.title,
+          // exactOptionalPropertyTypes: only set description when present.
+          ...(cmd.category !== undefined ? { description: cmd.category } : {}),
+        }));
+      const pick = await minibuffer.quickPick(items, {
+        prompt: ">",
+        placeholder: "Run a command",
+      });
+      if (pick) await commands.executeCommand(pick.id, c);
+    },
+  }),
+);
+
 store.add(keys.registerKeybinding({ keys: "Ctrl-o", command: "core.file.open" }));
 store.add(keys.registerKeybinding({ keys: "Ctrl-s", command: "core.file.save" }));
 store.add(keys.registerKeybinding({ keys: "Ctrl-q", command: "core.app.quit" }));
+store.add(keys.registerKeybinding({ keys: "Ctrl-Shift-p", command: "core.command.execute" }));
 
 /** Run a command if it exists and is enabled; report whether it consumed the key. */
 const dispatch = (commandId: string): boolean => {
@@ -71,6 +97,7 @@ editor.setBindings(keys.getBindings(), dispatch);
 // App-global keys, so open/save/quit still fire when focus is outside the editor
 // (design §6). CM6 calls preventDefault when it handles a key, so skip those.
 window.addEventListener("keydown", (event) => {
+  if (minibuffer.isOpen()) return; // the minibuffer captures its own keys while open
   if (event.defaultPrevented || event.isComposing) return;
   const parts: string[] = [];
   if (event.ctrlKey) parts.push("Ctrl");
@@ -115,5 +142,8 @@ window.coal.onSaveAndQuit(() => {
   })();
 });
 
-window.coal.onMenuCommand(dispatch);
+window.coal.onMenuCommand((id) => {
+  if (minibuffer.isOpen()) return; // the minibuffer owns input while open (design §8)
+  dispatch(id);
+});
 editor.facade.focus();
