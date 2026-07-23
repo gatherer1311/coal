@@ -1,7 +1,7 @@
 # Coal — Design Specification
 
 > **Status:** Living document. This is the authoritative source the builder pulls from.
-> **Last updated:** 2026-07-22
+> **Last updated:** 2026-07-23
 
 ---
 
@@ -161,7 +161,8 @@ _(Graph/visual-rendering library and similar specifics are tracked in `TODO.md` 
     and Vim `:w`, both resolving to the one registry command). Where a concept is native to only one
     paradigm (Vim text objects; Emacs marks/registers), each keymap expresses the shared underlying
     command in its own idiom. Parity is a maintained invariant, mirroring the §5 "both formats
-    first-class" rule applied to input.
+    first-class" rule applied to input. **Parity means coverage + idiom, not a behavioral
+    reimplementation of either editor** — see §6.1 for exactly what the keymaps are and are not.
   - **Vim modes are fully supported**, via the same command substrate: normal / insert / visual (and
     the rest), operators, and text objects.
   - **The minibuffer is unified — one element, two personalities.** In Emacs mode it is `M-x` /
@@ -172,6 +173,39 @@ _(Graph/visual-rendering library and similar specifics are tracked in `TODO.md` 
   is the canonical example), that is a first-class mouse experience.
 - **Both, where useful.** Features may expose both keyboard and mouse paths; the constraint is only
   that the core editing environment is fully operable from the keyboard.
+
+### 6.1 Keymaps as convention templates — Coal's commands, borrowed idioms
+
+The Emacs and Vim keymaps are **default keybinding templates Coal populates with its own commands —
+not reimplementations of Emacs or Vim.** This is stated explicitly here so it is never re-litigated:
+
+- **The command set is entirely Coal's.** Coal defines its own commands; it does not reproduce
+  Emacs's or Vim's command inventory. Each keymap is a curated set of key → `commandId` bindings
+  over *that* command set — a template we plug our commands into, kept relatively true to each
+  platform's keybinding philosophy.
+- **Derivation runs Coal-outward.** For each Coal command we choose an Emacs-idiom key **and** a
+  Vim-idiom key, guided by how each editor *would* bind an action of that nature — staying true to
+  each platform's philosophy (Emacs: chorded modifiers, `C-x` / `C-c` prefixes, non-modal; Vim:
+  modal normal / insert / visual, operator + motion, leader, the `:` ex-line). We do **not** start
+  from either editor's keymap and replicate it inward.
+- **A binding is not inherited just because the source editor has it.** Where Emacs or Vim binds a
+  key to a command Coal has no analog for — e.g. Emacs `M-$` → `ispell-word`, which Coal does not
+  have — that key is simply **unbound**: free to be assigned to a fitting Coal command later, or
+  left unused. Nothing is ever mapped to a command that does not exist.
+- **Coal-original commands get invented idiomatic bindings.** A command with no Emacs or Vim
+  ancestor (e.g. a PKM/linking action) is still bound in **both** templates, using a key **in the
+  spirit of** each platform (an Emacs `C-c`-style user binding; a Vim `<leader>` / `g`-prefix
+  binding), rather than borrowed from prior art.
+- **Parity is coverage + idiom, not behavior.** "First-class in both keymaps" means every Coal
+  command is **reachable and idiomatic in both** — *not* that Coal replicates either editor's
+  editing model, modal engine, or minibuffer internals. Both keymaps bind through the one public
+  command / keybinding API (§8) to the same registry commands, so neither has a path the other
+  lacks, and "every command is bound in both" is a **maintained, testable** invariant.
+
+The upshot: we implement Coal's own functions and commands, plug them into the two templates under
+each platform's conventions, and adjust a template only where Coal's command set genuinely diverges
+from what that editor's keys assume — no 1:1 cloning of either program's commands, functions, or
+keybindings.
 
 ---
 
@@ -1485,4 +1519,5 @@ frontmatter is editing text, like any other line.
 | 2026-07-21 | Encryption posture (§10.2 / §2 principle #3): encryption at rest walked back from a hard **requirement** to a **first-class, built-in, opt-in core feature — off by default**, enabled per vault; **plaintext vaults are equally first-class** (a developer pushes readable files to a company repo; hassle-averse users skip it). Founding principle #3 softened from "private by default" → "privacy built in, opt-in"; §1 vision updated. The §10.3/§10.4 **mechanism is unchanged**, and encryption **stays core** (not a plugin). Adopts a standing guardrail (§8.2): the most dangerous capabilities — storage-codec / physical-representation, key custody, startup gating, ambient host authority — are **first-party-only, never third-party-consentable**; a pluggable storage seam is deferred until a genuine second consumer exists. **[Superseded in part 2026-07-22 (kernel/plugin pivot): the opt-in / off-by-default posture and the first-party-only privileged guardrail stand, but encryption is now a **first-party plugin** — not core — that fills the storage-codec / startup-gate / key-custody seams, which are built now rather than deferred. See the 2026-07-22 entry and §10.2.]** | Optionality (not plugin-ness) was the real goal, and it is met without exposing the app's most dangerous seams to community plugins or building a general storage seam speculatively for one consumer; keeping encryption core changes the just-ratified mechanism the least. The guardrail keeps Coal's private-when-enabled posture from ever hinging on users judging un-judgeable "control all your files / hold your keys" consent dialogs. |
 | 2026-07-21 | Interaction model (§6 / §2 principle #4): **Emacs *and* Vim keymaps both ship out of the box**, chosen at **first run** (no baked-in default), declaratively switchable (§9), with **full feature parity** (every command bound in both, each modeled on the closest counterpart in its editor) and **fully-supported Vim modes**. Delivered as **bundled official plugins** over a core command-substrate + minibuffer + **input-mode seam**; the **minibuffer is unified** — Emacs `M-x`/`M-:`, Vim `:` ex line + `/` search + mode indicator. Founding principle #4 widened from "Emacs keybindings" → "Emacs and Vim keymaps"; §1 vision widened to "Emacs or Vim." Registered in `PLUGINS.md`. **[Superseded in part 2026-07-22 (kernel/plugin pivot): both keymaps now live in the **kernel**, not as bundled official plugins — the input layer is fundamental to a keyboard-first editor. They still bind through the public command/keybinding API, and community keymaps remain a safe extension. Removed from `PLUGINS.md`. See the 2026-07-22 entry and §6.]** | Serves the widest editor audience (the "VSCode/Obsidian/Emacs/Vim in one" aim) on Coal's extensible substrate. The input-mode seam is *safe* (touches no files, keys, or network) and has **two real consumers from day one**, so — unlike the storage seam — it sits on the community-open side of the §8.2 guardrail and is justified now, not speculatively. |
 | 2026-07-21 | v1 surface roster + workspace shell (§14): everything in `SPEC.md` + `TODO.md` is v1 (no deferred tier). The **workspace shell** is **hybrid** — a keyboard-first spine (minibuffer open; Emacs **windows** as the sole split primitive; per-window **tabs**) with a **left** file-tree sidebar and a **quick switcher**, all default-on; the **right** dock stays the §13 panels. The roster **adds**: the bidirectional **Links panel** (§13.14 extended — *Links to* outgoing = own-sidecar read, above *Linked from*; Dangling stays the outbound-broken alarm, so Links-to / Linked-from / Dangling are three disjoint surfaces), an internal-only **hover preview** (reuses the §13.14 peek engine), an **outline/TOC panel**, a **word-count** status element, the **quick switcher**, and **templates** (proposed official plugin, `PLUGINS.md`). Deep design of graph, embeds, search, tags, daily notes, templates, and the shell's keybindings/session-persistence each spin out as their own `TODO.md` sessions. Deliberate boundary: **no GUI properties editor** — frontmatter is edited as text (§7.1 / §2). Obsidian's separate tab-group abstraction is rejected (a window already models layout). | Owner-first dogfooding makes "v1" = "the owner can live in it," so the surface set is enumerated once as a build target rather than discovered ad hoc; the hybrid shell honors keyboard-first (§2 #4) without denying Obsidian switchers the tree/tabs. Surfacing connections **both** directions is the point of a PKM tool — the app should show the graph, not make you reconstruct it by scrolling — while the disjoint Links-to / Linked-from / Dangling split preserves §13.14's no-double-count invariant. Hover-preview and quick-switcher reuse existing mechanisms (peek §13.14; the §13.11 name set) rather than new machinery. |
+| 2026-07-23 | **Keymaps as convention templates (§6.1).** The Emacs and Vim keymaps are **default keybinding templates populated with Coal's own commands, not reimplementations** of either editor. Derivation runs **Coal-outward** — each Coal command gets an Emacs-idiom and a Vim-idiom binding chosen in the spirit of each platform's philosophy; a key the source editor binds to a command Coal lacks (e.g. Emacs `M-$` → `ispell-word`) stays **unbound**, not inherited; Coal-original commands get **invented** idiomatic bindings in both. **Parity = coverage + idiom, not behavioral replication**: every command reachable and idiomatic in both keymaps, bound through the one command / keybinding API (§8) to the same registry commands — a maintained, testable invariant. Refines (does not supersede) the §6 "full feature parity" bullet. | The keymap model had been a recurring source of ambiguity — borrow Emacs/Vim *conventions* vs. reimplement their *commands*. Pinning it down stops scope creep toward cloning either editor, keeps the command set unambiguously Coal's, and anchors the parity invariant the upcoming minibuffer + keymap work depends on. |
 | 2026-07-22 | **Kernel/plugin pivot (§1/§2/§8; touches §4/§6/§7/§10/§13/§14).** Re-found the core/plugin split around a **minimal, general-purpose, keyboard-first kernel** (raw presentation + navigation; usable with zero plugins) and **re-home the entire feature set as bundled first-party plugins** on the public API (Markdown/Org + Live Preview, linking/PKM, **Git**, **encryption**, search, tags, templates, …). The kernel dogfoods the **same public API** (core-as-plugins made *literal*). **Both keymaps, the syntax-highlighting engine, and the workspace shell move into the kernel**; grammars are auto-activating passive-provider plugins; official feature plugins are bundled **off by default**. **Two-tier trust:** first-party bundled = fully trusted (only tier eligible for the privileged class); third-party = blocked-by-default (one global gate) + realm-bounded to declared, scoped, least-privilege caps under informed per-plugin consent. **Capability catalogue** (`document`/`vault`/`network`/`process`/`clipboard`) + **privileged class** (`storage-codec`/`startup-gate`/`key-custody`, first-party only; no `ambient`/raw-Node cap). Config surface = kernel-owned `.coal/config/` tree (`settings.toml` + `plugins.toml` roster + `plugins/<id>.toml`), replacing `.coal/config/PLUGINS.<ext>`. Manifest = `plugin.toml`; host API SemVer with an N-1 compatibility window + graceful degrade; lifecycle = lazy activation + hot enable/disable + kernel auto-disposal ledger + error isolation; third-party = pre-built-JS-only over open-source git repos, manual updates. **Supersedes in part** the 2026-07-21 "encryption stays core / storage seam deferred," "keymaps as bundled official plugins," "core-vs-plugin split stays open," and "`PLUGINS.<ext>`" decisions (marked above). Theming is a separate, queued design session. Full design: [`docs/superpowers/specs/2026-07-22-plugin-system-design.md`](docs/superpowers/specs/2026-07-22-plugin-system-design.md). | The prior spec baked PKM / encryption / git in as privileged **core**, so "core-as-plugins" was aspirational, not load-bearing. Re-homing them as first-party plugins makes it structural — a feature the flagship suite can't reach is an API gap **by construction** — and yields a small, fast, hackable substrate whose value *is* the extension API. It is a re-homing, **not a feature cull**: what changes is the layer, the delivery (opt-in), and the trust anchor (core-membership → first-party bundling). Encryption stays tractable because the privileged class it needs is reserved to first-party-audited code, and the kernel never learns crypto. Keymaps go to the kernel because a keyboard-first editor must be operable with zero plugins. |
