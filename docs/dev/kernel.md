@@ -40,13 +40,16 @@ so ~80–90% of the logic is unit-tested in plain Node.
 | `io/detect.ts` | `detectEncoding` (BOM + NUL-parity heuristic), `detectEol` (LF/CRLF; lone-CR → `mixedEol`), `hasFinalNewline`. |
 | `io/codec.ts` | `decode(bytes)` → LF-normalized text + metadata; `encode(text, meta)` → bytes. For a non-mixed file, `encode(decode(b).text, decode(b).meta)` byte-equals `b`. |
 | `ipc/contract.ts` | The `IPC` channel-name map + request/response types + the `CoalApi` interface exposed on `window.coal`. Shared by main + preload. |
+| `config/schema.ts` · `config/validate.ts` · `config/types.ts` · `config/defaultTemplate.ts` | The global-scope kernel settings: schema + non-destructive `validate(raw)` → `{ settings, diagnostics }` + the curated default `settings.toml` template. Pure, dependency-free. |
 
 ### `src/main/` — Electron main-process adapters
 
 | File | What it provides |
 |---|---|
 | `fileService.ts` | Owns open files: decode on open (opaque `doc-N` id), encode + **atomic** save (`write-file-atomic` + directory fsync, symlink-through, mode-preserving), and a pristine-buffer no-op so an unedited save is byte-exact even for mixed-EOL files. |
-| `guards.ts` | Pure IPC validators: `isSaveRequest`, `isTrustedUrl`. |
+| `tomlConfigCodec.ts` | Pure TOML round-trip over `@decimalturn/toml-patch`: `parse(text)` and comment-preserving `applyEdit(text, obj)`. The only place TOML text is handled. |
+| `configService.ts` | Owns the global `settings.toml` (`app.getPath('userData')`): materialize on first run, comment-preserving `set`, `reload`, atomic write, and a change broadcast. |
+| `guards.ts` | Pure IPC validators: `isSaveRequest`, `isConfigSetRequest`, `isTrustedUrl`. |
 | `ipc.ts` | `registerIpc(deps)` — wires `ipcMain.handle`/`on` for every channel; **validates `senderFrame` and the payload before acting**. |
 | `window.ts` | `createWindow` — hardened, explicitly-pinned `webPreferences`. |
 | `protocol.ts` | Serves the built renderer from a custom `app://` scheme with a strict CSP header and path-containment. |
@@ -59,6 +62,7 @@ so ~80–90% of the logic is unit-tested in plain Node.
 |---|---|
 | `preload/index.ts` | The `coal` bridge implementing `CoalApi`. |
 | `renderer/coal.d.ts` | `window.coal: CoalApi` typing. |
+| `renderer/config.ts` | `ConfigClient` — the reactive settings replica: `init` loads + subscribes, `onChange` notifies, `set`/`reload` proxy to main. |
 | `renderer/editor.ts` | `createEditor` — mounts CM6, exposes the `EditorFacade`, and **generates the CM keymap from the keybinding registry** (a Compartment); tracks dirty. |
 | `renderer/main.ts` | The composition root: registers `core.file.open/save/quit` through the public API, binds keys, wires the window-level global keydown, `onDocOpened`, and `onSaveAndQuit`. |
 | `renderer/index.html` | Root + the fill-the-frame style; CSP is applied by the `app://` handler, not a meta tag. |
@@ -78,6 +82,12 @@ so ~80–90% of the logic is unit-tested in plain Node.
 - **Quit guard.** On close with unsaved changes, main shows Save / Don't-Save / Cancel (Save is
   omitted when no file backs the buffer). "Save" asks the renderer to save then quit; a failed save
   leaves the window open.
+- **Config.** On boot the renderer's `ConfigClient.init()` calls `coal.config.load()` → main reads
+  `settings.toml` (materializing the curated default when absent) → `tomlConfigCodec.parse` →
+  `kernel/config` `validate` → a `ConfigSnapshot` back to the renderer. `config.set({ keymap })` merges
+  the change into the full parsed object and `applyEdit`s it (comments + foreign keys preserved), atomic-
+  writes, and broadcasts `config:changed`; `core.config.reload` re-reads external hand-edits. Config is
+  the **user/global** scope (`SPEC.md` §9); the per-vault tree arrives with the workspace/PKM slices.
 
 ## Security posture (design §3)
 
@@ -103,7 +113,7 @@ Run: `npm test` (node), `npm run test:browser`, `npm run test:e2e`; `npm run typ
 ## Not yet built
 
 Per the design's build sequence (§1.1), the kernel still thickens: the unified minibuffer, both
-Emacs/Vim keymaps + the first-run prompt, the config tree + Settings, the plugin loader / capability
-broker / host API, the syntax-highlighting engine, the workspace shell, and the privileged
-startup/storage seams. `src/overlay/` stays untouched — it becomes the linking plugin's core once
-the extension substrate exists.
+Emacs/Vim keymaps + the first-run prompt, the **per-vault** config tree + Settings UI, the plugin
+loader / capability broker / host API, the syntax-highlighting engine, the workspace shell, and the
+privileged startup/storage seams. `src/overlay/` stays untouched — it becomes the linking plugin's
+core once the extension substrate exists.
