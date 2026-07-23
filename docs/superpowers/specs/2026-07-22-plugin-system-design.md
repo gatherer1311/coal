@@ -402,7 +402,10 @@ privilege separation, so a plugin cannot enable itself or edit the config layer.
 ```
 
 - `settings.toml` holds **kernel options only** — a small set, because most "settings" are really
-  plugin settings (Live Preview itself is a plugin).
+  plugin settings (Live Preview itself is a plugin). *(Refined 2026-07-23: config is two-scope — this
+  vault `settings.toml` holds **vault-scoped** kernel options + overrides; **user-preference** kernel
+  settings, keymap/editor-basics/theme, live in the **user/global** scope `$XDG_CONFIG_HOME/coal`. See
+  `SPEC.md` §9/§8.3 and [`config-loader design`](2026-07-23-config-loader-design.md) §2.)*
 - `plugins.toml` is the **enablement roster** for all plugins, kernel-owned so a plugin can't enable
   itself or a peer. First-party entries carry `enabled`; third-party entries also carry `source` (git
   URL), a pinned `version`, and `consented` (the per-plugin consent record). Absent first-party =
