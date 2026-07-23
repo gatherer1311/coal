@@ -1,0 +1,314 @@
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style>/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("ac3476e1-c4b1-408c-a951-7477b526bad4") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("682cb9db-76f1-42a8-b20b-66db60ff95f3") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("463f7d97-c20b-423b-b925-a212abbdc5ad") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("e8bae705-3668-4354-b4ff-9145b200acd6") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("7fd569eb-fbb5-4acd-8787-f4729049bfdd") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("4617d40a-4b16-45bb-8816-110cffeff8d3") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fb537716-18b6-45bb-88b0-322ff8d2d489") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("a0f8756b-6ce3-403f-b924-64f78576d2f8") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("dc8701ac-6a2b-4ebe-8e5a-5e925ace540e") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("0622d15b-ed24-4e10-8991-f8bddd5632b0") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("ffe75db9-bc21-4ce6-8fb1-5a7de045b796") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("157245ca-9449-47a9-8e05-2b9ccfb10cbb") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fb537716-18b6-45bb-88b0-322ff8d2d489") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("a0f8756b-6ce3-403f-b924-64f78576d2f8") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("dc8701ac-6a2b-4ebe-8e5a-5e925ace540e") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("0622d15b-ed24-4e10-8991-f8bddd5632b0") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("ffe75db9-bc21-4ce6-8fb1-5a7de045b796") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("157245ca-9449-47a9-8e05-2b9ccfb10cbb") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fb537716-18b6-45bb-88b0-322ff8d2d489") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("a0f8756b-6ce3-403f-b924-64f78576d2f8") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("dc8701ac-6a2b-4ebe-8e5a-5e925ace540e") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("0622d15b-ed24-4e10-8991-f8bddd5632b0") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("ffe75db9-bc21-4ce6-8fb1-5a7de045b796") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("157245ca-9449-47a9-8e05-2b9ccfb10cbb") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+</style>
+<style>
+:root{--accent:#b8e62d;}
+html,body{margin:0;padding:0;background:#000000;}
+body{font-family:'JetBrains Mono',ui-monospace,monospace;}
+a{color:var(--accent);text-decoration:none;} a:hover{color:#d6f56b;}
+*{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:#232a1a transparent;}
+::selection{background:rgba(184,230,45,.25);}
+@keyframes cblink{0%,60%{opacity:1}61%,100%{opacity:.15}}
+</style>
+</helmet>
+<div data-screen-label="Coal editor window" style="display:grid;grid-template-rows:34px 34px 1fr 30px;height:100vh;min-width:1080px;background:#000000;color:#c9d3ba;font-size:14px;overflow:hidden;">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;background:#000000;border-bottom:1px solid #1a2013;padding:0 10px;min-width:0;">
+    <span style="display:flex;align-items:center;gap:8px;font-size:12px;padding-left:4px;">
+      <span style="width:10px;height:10px;border-radius:50%;background:var(--accent);display:inline-block;"></span>
+    </span>
+    <div style="font-size:12px;color:#49543c;">~/dev/watcher/main.py</div>
+    <span title="Close" style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#1b2213;color:#dce8c6;cursor:pointer;" style-hover="background:#28331b;">
+      <svg width="11" height="11" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+    </span>
+  </div>
+
+  <div style="display:flex;align-items:stretch;background:#000000;border-bottom:1px solid #1a2013;font-size:12.5px;overflow:hidden;min-width:0;">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 14px;background:#0d1207;color:#dce8c6;border-right:1px solid #1a2013;box-shadow:inset 0 2px 0 var(--accent);white-space:nowrap;">
+      <span>main.py</span><span style="color:#5c6850;">✕</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:0 14px;color:#6d7a5e;border-right:1px solid #141910;white-space:nowrap;" style-hover="color:#9aa886;">lib.rs</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:0 14px;color:#6d7a5e;border-right:1px solid #141910;white-space:nowrap;" style-hover="color:#9aa886;">app.ts</div>
+    <div style="display:flex;align-items:center;padding:0 12px;color:#5c6850;">+</div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;min-width:0;min-height:0;background:#000000;">
+    <div style="flex:1;overflow:auto;padding:18px 0;line-height:24px;">
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">13</span><span style="white-space:pre;color:#49543c;">#!/usr/bin/env python3</span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">12</span><span style="white-space:pre;color:#8aa25c;">"""Watch a directory and rebuild on change."""</span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">11</span><span style="white-space:pre;"></span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">10</span><span style="white-space:pre;"><span style="color:#cfe39a;">import</span> time</span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">9</span><span style="white-space:pre;"><span style="color:#cfe39a;">from</span> pathlib <span style="color:#cfe39a;">import</span> Path</span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">8</span><span style="white-space:pre;"></span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">7</span><span style="white-space:pre;">WATCH = Path(<span style="color:#8aa25c;">"./src"</span>)</span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">6</span><span style="white-space:pre;">DEBOUNCE = <span style="color:#9db56a;">0.25</span></span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">5</span><span style="white-space:pre;"></span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">4</span><span style="white-space:pre;"><span style="color:#cfe39a;">def</span> <span style="color:#dce8c6;font-weight:700;">snapshot</span>(root: Path) -&gt; <span style="color:#9aa886;">dict</span>:</span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">3</span><span style="white-space:pre;">    <span style="color:#cfe39a;">return</span> {p: p.stat().st_mtime <span style="color:#cfe39a;">for</span> p <span style="color:#cfe39a;">in</span> root.rglob(<span style="color:#8aa25c;">"*.py"</span>)}</span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">2</span><span style="white-space:pre;"></span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">1</span><span style="white-space:pre;"><span style="color:#cfe39a;">def</span> <span style="color:#dce8c6;font-weight:700;">main</span>() -&gt; <span style="color:#9aa886;">None</span>:</span></div>
+      <div style="display:flex;background:color-mix(in srgb, var(--accent) 7%, transparent);"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:var(--accent);font-size:12px;">14</span><span style="white-space:pre;">    seen = snapshot(WATCH<span style="background:var(--accent);color:#000000;font-weight:700;animation:cblink 1.1s step-end infinite;">)</span></span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">1</span><span style="white-space:pre;">    <span style="color:#cfe39a;">while</span> <span style="color:#9aa886;">True</span>:</span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">2</span><span style="white-space:pre;">        time.sleep(DEBOUNCE)</span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">3</span><span style="white-space:pre;">        now = snapshot(WATCH)</span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">4</span><span style="white-space:pre;">        <span style="color:#cfe39a;">if</span> now != seen:</span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">5</span><span style="white-space:pre;">            <span style="color:#9aa886;">print</span>(<span style="color:#8aa25c;">"rebuilding…"</span>)</span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">6</span><span style="white-space:pre;">            seen = now</span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">7</span><span style="white-space:pre;"></span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">8</span><span style="white-space:pre;"><span style="color:#cfe39a;">if</span> __name__ == <span style="color:#8aa25c;">"__main__"</span>:</span></div>
+      <div style="display:flex;"><span style="flex:none;width:60px;text-align:right;padding-right:20px;color:#3f4a33;font-size:12px;">9</span><span style="white-space:pre;">    main()</span></div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;background:#14180d;border-top:1px solid #232a1a;padding:2px 12px;font-size:12px;color:#9aa886;white-space:nowrap;overflow:hidden;">
+      <span>(14,29)</span>
+      <div style="display:flex;align-items:center;gap:12px;color:#5c6850;">
+        <span>23 lines</span>
+        <span>68 words</span>
+        <span>512 chars</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="position:relative;display:flex;align-items:center;background:#000000;border-top:1px solid #232a1a;padding:0 14px;font-size:13px;min-width:0;">
+    <sc-if value="{{ mbIdle }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+        <span style="color:#6d7a5e;">Wrote ~/dev/watcher/main.py</span>
+        <span style="color:#3f4a33;font-size:11.5px;">M-x commands · C-h help</span>
+      </div>
+    </sc-if>
+    <sc-if value="{{ mbActive }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;width:100%;gap:10px;">
+        <span style="color:var(--accent);">12/89</span>
+        <span style="color:#dce8c6;font-weight:700;">M-x</span>
+        <span style="color:#dce8c6;">buf</span><span style="background:var(--accent);width:8px;height:17px;display:inline-block;animation:cblink 1.1s step-end infinite;"></span>
+      </div>
+      <div style="position:absolute;bottom:100%;left:0;right:0;background:#050705;border-top:1px solid #232a1a;box-shadow:0 -12px 30px rgba(0,0,0,.6);font-size:13px;line-height:2;z-index:50;">
+        <div style="display:flex;background:color-mix(in srgb, var(--accent) 16%, transparent);"><span style="flex:none;width:300px;padding:0 18px;color:var(--accent);font-weight:700;">buffer-switch</span><span style="color:#9aa886;">Jump to an open buffer</span></div>
+        <div style="display:flex;"><span style="flex:none;width:300px;padding:0 18px;color:#cfe39a;">buffer-kill</span><span style="color:#5c6850;">Close the current buffer</span></div>
+        <div style="display:flex;"><span style="flex:none;width:300px;padding:0 18px;color:#cfe39a;">file-find</span><span style="color:#5c6850;">Open a file by path</span></div>
+        <div style="display:flex;"><span style="flex:none;width:300px;padding:0 18px;color:#cfe39a;">search-project</span><span style="color:#5c6850;">Grep across the working directory</span></div>
+        <div style="display:flex;"><span style="flex:none;width:300px;padding:0 18px;color:#cfe39a;">replace-string</span><span style="color:#5c6850;">Replace occurrences of FROM with TO</span></div>
+        <div style="display:flex;"><span style="flex:none;width:300px;padding:0 18px;color:#cfe39a;">comment-region</span><span style="color:#5c6850;">Comment or uncomment the region</span></div>
+        <div style="display:flex;"><span style="flex:none;width:300px;padding:0 18px;color:#cfe39a;">theme-reload</span><span style="color:#5c6850;">Reload user CSS</span></div>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>

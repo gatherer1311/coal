@@ -127,12 +127,16 @@ design.
 
 ## Pre-build gates
 
-- [ ] **Visual design target** — before implementation begins, produce a visual design (by **Claude
-  Design**) so there is a concrete visual target to build toward, rather than designing UI ad hoc
-  during the build. Covers the default **"Sublime"** theme (dark black + sublime-green accents,
-  `SPEC.md` §8.1) and the v1 surfaces (the §14 roster — editor, workspace shell §14.1, minibuffer,
-  Links/Dangling panels §13.9/§13.14, outline & status-bar, settings). Gate:
-  building starts against an agreed visual target.
+- [~] **Visual design target** — a concrete visual design to build toward, rather than designing UI ad
+  hoc during the build. **Down-payment filed** (Claude Design):
+  [`docs/superpowers/specs/2026-07-23-visual-design-target.md`](docs/superpowers/specs/2026-07-23-visual-design-target.md)
+  — high-fidelity mockups of the shared shell in both the PKM and base-editor layouts, plus the concrete
+  **"Sublime"** palette (dark black + sublime-green `#b8e62d`, `SPEC.md` §8.1), which is effectively
+  complete. **Still to close before the gate is met:** draw/spec the §14 roster surfaces the mockup
+  omits — the bidirectional **Links panel** and **Dangling** panel (§13.14 / §13.9) as distinct
+  surfaces, the **quick switcher**, the **Settings UI**, hover preview, and the Vim command-line/search
+  minibuffer state — and settle the **§14 properties reconciliation** (the PROPERTIES panel vs. "no GUI
+  properties editor"; see the doc §4). Gate: building starts against an agreed visual target.
 
 ## Build tasks
 
