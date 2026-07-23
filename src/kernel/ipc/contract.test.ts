@@ -18,6 +18,11 @@ describe("IPC contract (design §3 typed channels)", () => {
       saveAndQuit: "coal:app.saveAndQuit",
       appQuit: "coal:app.quit",
       menuCommand: "coal:menu.command",
+      configLoad: "coal:config.load",
+      configSet: "coal:config.set",
+      configReload: "coal:config.reload",
+      configChanged: "coal:config.changed",
+      configOpen: "coal:config.open",
     });
   });
 });
