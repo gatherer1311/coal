@@ -1,5 +1,5 @@
 // src/main/guards.ts
-import { KEYMAP_VALUES } from "../kernel/config/schema";
+import { KERNEL_SETTING_KEYS, KEYMAP_VALUES } from "../kernel/config/schema";
 import type { SaveRequest } from "../kernel/ipc/contract";
 import type { ConfigSetRequest } from "../kernel/ipc/contract";
 
@@ -16,6 +16,9 @@ export function isConfigSetRequest(value: unknown): value is ConfigSetRequest {
   if (typeof value !== "object" || value === null) return false;
   const patch = (value as { patch?: unknown }).patch;
   if (typeof patch !== "object" || patch === null) return false;
+  for (const key of Object.keys(patch)) {
+    if (!(KERNEL_SETTING_KEYS as readonly string[]).includes(key)) return false;
+  }
   const keymap = (patch as { keymap?: unknown }).keymap;
   if (keymap !== undefined && !(KEYMAP_VALUES as readonly string[]).includes(keymap as string)) {
     return false;

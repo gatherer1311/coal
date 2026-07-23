@@ -28,7 +28,10 @@ const reflectKeymap = (): void => {
   document.body.dataset["coalKeymap"] = config.settings.keymap ?? "";
 };
 config.onChange(reflectKeymap);
-void config.init().then(reflectKeymap);
+void config
+  .init()
+  .then(reflectKeymap)
+  .catch((err) => console.error("config init failed:", err));
 
 store.add(
   commands.registerCommand({
@@ -87,6 +90,11 @@ store.add(
   }),
 );
 
+// Opens settings.toml as a normal editor doc — a byte-exact fileService save
+// path, separate from config.set's preserving patch. An open settings buffer is
+// NOT refreshed by core.config.reload or external edits until live file-watching
+// lands (a committed follow-up), so saving a stale buffer can overwrite newer
+// on-disk content. Acceptable for now; revisit with live-watch.
 store.add(
   commands.registerCommand({
     id: "core.config.open",

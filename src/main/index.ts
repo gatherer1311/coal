@@ -87,7 +87,9 @@ if (!app.requestSingleInstanceLock()) {
     mainWindow = win;
     Menu.setApplicationMenu(buildMenu(win));
 
-    void configService.load(); // materialize on first run, before the renderer asks
+    void configService
+      .load() // materialize on first run, before the renderer asks
+      .catch((err) => console.error("initial config load failed:", err));
     configService.onDidChangeConfig((snapshot) => {
       mainWindow?.webContents.send(IPC.configChanged, snapshot);
     });

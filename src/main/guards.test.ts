@@ -35,4 +35,9 @@ describe("isConfigSetRequest", () => {
     expect(isConfigSetRequest({ patch: { keymap: "kakoune" } })).toBe(false);
     expect(isConfigSetRequest({ patch: { keymap: 3 } })).toBe(false);
   });
+
+  test("rejects a patch with keys outside the kernel schema", () => {
+    expect(isConfigSetRequest({ patch: { bogus: 1 } })).toBe(false);
+    expect(isConfigSetRequest({ patch: { keymap: "vim", bogus: 1 } })).toBe(false);
+  });
 });
