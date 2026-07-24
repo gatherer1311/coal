@@ -1,0 +1,54 @@
+# electron-builder configuration.
+#
+# Packaging is owned by electron-builder (SPEC §4); electron-vite produces the
+# main/preload/renderer bundles in `out/` first (see the `dist` / `pack` scripts).
+# RPM is the launch target (SPEC §3.1); DEB / Flatpak / macOS / Android and RPM
+# signing are deliberately out of scope here (post-launch).
+
+# Interim reverse-DNS id following the GitHub-hosted convention; the formal app-id
+# is still deferred (kernel walking-skeleton design §10). Cheap to change pre-release.
+appId: io.github.gatherer1311.coal
+productName: Coal
+executableName: coal
+copyright: Copyright © Coal authors
+
+directories:
+  buildResources: build-resources
+  output: dist
+
+# Include-by-default, minus dev-only files. The app runs from `out/`, and production
+# dependencies under node_modules are bundled automatically by electron-builder.
+files:
+  - "!**/.vscode/*"
+  - "!src/*"
+  - "!e2e/*"
+  - "!electron.vite.config.{js,ts,mjs,cjs}"
+  - "!{vitest.config.ts,playwright.config.ts}"
+  - "!{tsconfig.json,tsconfig.*.json}"
+  - "!*.tsbuildinfo"
+  - "!{.prettierrc.json,.prettierignore}"
+  - "!{README.md,SPEC.md,TODO.md,PLUGINS.md,CONTRIBUTING.md,CODE_OF_CONDUCT.md,SECURITY.md,NOTICE}"
+  - "!{docs,reference,coverage,test-results,scripts,build-resources,.github,.githooks,.superpowers}/**"
+
+asar: true
+npmRebuild: false
+
+linux:
+  target:
+    - target: rpm
+      arch:
+        - x64
+  # Icon set for the default "sublime" theme (lemon-lime faceted-coal mark).
+  icon: build-resources/sublime
+  # electron-builder writes this verbatim into the desktop entry's `Categories` (a per-entry
+  # `desktop.entry.Categories` is overwritten by this, so the full list must live here).
+  category: Utility;TextEditor;Development
+  maintainer: Coal authors <gatherer1311@users.noreply.github.com>
+  synopsis: Linux-native, keyboard-first Markdown/Org editor
+  description: >-
+    Coal is a minimal, Linux-native, keyboard-first text editor whose value is its
+    plugin API. The kernel opens and edits any file format from the keyboard; an
+    opt-in bundled plugin suite adds a Markdown/Org PKM workspace.
+  desktop:
+    entry:
+      Keywords: markdown;org;editor;notes;pkm;keyboard;
