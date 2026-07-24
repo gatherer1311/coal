@@ -4,6 +4,11 @@
   "private": true,
   "description": "Linux-native, keyboard-first Markdown/Org editor — core.",
   "license": "Apache-2.0",
+  "author": "Coal authors <gatherer1311@users.noreply.github.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gatherer1311/coal.git"
+  },
   "type": "module",
   "main": "./out/main/index.js",
   "engines": {
@@ -14,6 +19,8 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
+    "dist": "electron-vite build && electron-builder --linux rpm",
+    "pack": "electron-vite build && electron-builder --linux dir",
     "test": "vitest run --project=node",
     "test:coverage": "vitest run --project=node --coverage",
     "test:watch": "vitest --project=node",
@@ -31,6 +38,8 @@
     "@vitest/browser": "^4.1.10",
     "@vitest/browser-playwright": "^4.1.10",
     "@vitest/coverage-v8": "^4.1.10",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.0.0",
     "electron-vite": "^5.0.0",
     "fast-check": "^4.9.0",
     "playwright": "^1.61.1",
@@ -44,7 +53,6 @@
     "@codemirror/state": "^6.7.1",
     "@codemirror/view": "^6.43.6",
     "@decimalturn/toml-patch": "^2.1.0",
-    "electron": "^43.2.0",
     "write-file-atomic": "^6.0.0"
   }
 }

@@ -141,5 +141,9 @@ design.
 ## Build tasks
 
 - _(populated once building begins)_
+- [x] **RPM packaging & release automation** (§3, §3.1) — electron-builder RPM build, published as
+  a GitHub prerelease on `v*` tags (and on manual dispatch as a run artifact) via
+  `.github/workflows/release.yml`. Design:
+  [`docs/superpowers/specs/2026-07-24-release-automation-design.md`](docs/superpowers/specs/2026-07-24-release-automation-design.md).
 - [ ] **Per-platform packaging & ports** (§3.1) — DEB, Flatpak, macOS app bundle, Android APK. RPM
   is the launch target; the rest are committed post-launch build work.
