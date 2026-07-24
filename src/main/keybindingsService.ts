@@ -61,6 +61,10 @@ export class KeybindingsService {
     try {
       if (!this.#loaded) await this.load();
       const current = this.#text ?? DEFAULT_KEYBINDINGS_TOML;
+      // Append is deliberately parse-free (comment-preserving), so validate the
+      // current file parses BEFORE appending: a hand-corrupted file fails cleanly
+      // ({ ok: false }) and is never clobbered, matching ConfigService.set.
+      parse(current);
       const nextText = appendEntry(current, entry);
       await this.#write(nextText);
       this.#text = nextText;

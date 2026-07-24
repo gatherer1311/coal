@@ -53,4 +53,14 @@ describe("KeybindingsService (design §7 keybindings.toml owner)", () => {
     expect(snap.diagnostics[0]).toMatchObject({ kind: "parse-error" });
     expect(await readFile(svc.path, "utf-8")).toBe(bad);
   });
+
+  test("bind on an already-malformed file fails without clobbering it", async () => {
+    const svc = new KeybindingsService(dir);
+    const bad = "not = = valid ][\n";
+    await writeFile(svc.path, bad, "utf-8");
+    await svc.load();
+    const res = await svc.bind("Ctrl-c s", "core.file.save");
+    expect(res.ok).toBe(false);
+    expect(await readFile(svc.path, "utf-8")).toBe(bad);
+  });
 });
