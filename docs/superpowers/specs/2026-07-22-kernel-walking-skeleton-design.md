@@ -49,9 +49,12 @@ order may shift as we learn. This roadmap is context, not a commitment:
 
 1. **PR #1 — walking skeleton** (this doc): Electron + CM6 + byte-exact open/save/quit through a minimal
    command registry.
-2. Command **minibuffer** (unified `M-x` / `:` / `/` surface) + `quickPick` primitive over the registry.
+2. Command **minibuffer** (the `M-x` + input surface) + `quickPick` primitive over the registry.
 3. **Config loader** + the kernel-owned `.coal/config/` tree (`settings.toml`, TOML round-trip).
-4. **Both keymaps** (Emacs + Vim) bound through the public keybinding API + the first-run keymap prompt.
+4. **Command + keybinding system** — a multi-stroke key-sequence resolver, `when`-context precedence, a
+   curated default keymap, a plain-text `keybindings.toml` override + interactive bind flow, and the
+   discoverability layer (palette key-hints, which-key, Describe-Key/Command). Modeled on Emacs; no dual
+   keymaps, no modal editing. (Supersedes the former "both keymaps + first-run prompt" step 4.)
 5. **Extension substrate** — plugin loader + capability broker + the typed host API + manifest
    (`plugin.toml`) parsing + the auto-disposal ledger.
 6. **Syntax-highlighting engine** (`@codemirror/language` infra) + the passive-provider grammar seam.
