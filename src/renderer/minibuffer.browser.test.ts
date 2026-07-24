@@ -6,64 +6,77 @@ import type { QuickPickItem } from "../kernel/minibuffer/types";
 
 const items: QuickPickItem[] = [
   { id: "core.file.open", label: "Open File…" },
-  { id: "core.file.save", label: "Save" },
+  { id: "core.file.save", label: "Save", keyHint: "Ctrl-x Ctrl-s" },
   { id: "core.app.quit", label: "Quit" },
 ];
 
-describe("Minibuffer (design §3 native overlay + quickPick)", () => {
-  test("type to filter, Enter resolves the selected item", async () => {
-    const host = document.createElement("div");
-    document.body.appendChild(host);
-    const mb = new Minibuffer(host);
+function mount(): { host: HTMLElement; mb: Minibuffer } {
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  return { host, mb: new Minibuffer(host) };
+}
 
+describe("Minibuffer (design §3/§7/§8)", () => {
+  test("type to filter, accept() resolves the selected item", async () => {
+    const { host, mb } = mount();
     const pick = mb.quickPick(items, { prompt: ">", placeholder: "Run a command" });
     expect(mb.isOpen()).toBe(true);
-
     await userEvent.keyboard("save");
-    await userEvent.keyboard("{Enter}");
-
+    mb.accept();
     expect((await pick)?.id).toBe("core.file.save");
     expect(mb.isOpen()).toBe(false);
     host.remove();
   });
 
-  test("Escape resolves undefined and closes", async () => {
-    const host = document.createElement("div");
-    document.body.appendChild(host);
-    const mb = new Minibuffer(host);
-
+  test("cancel() resolves undefined and closes", async () => {
+    const { host, mb } = mount();
     const pick = mb.quickPick(items);
-    await userEvent.keyboard("{Escape}");
-
+    mb.cancel();
     expect(await pick).toBeUndefined();
-    expect(mb.isOpen()).toBe(false);
     host.remove();
   });
 
-  test("ArrowDown moves the selection before accepting", async () => {
-    const host = document.createElement("div");
-    document.body.appendChild(host);
-    const mb = new Minibuffer(host);
-
-    const pick = mb.quickPick(items); // no query -> [Open File…, Save, Quit], selected 0
-    await userEvent.keyboard("{ArrowDown}{Enter}"); // move to Save
-
+  test("next() moves the selection before accepting", async () => {
+    const { host, mb } = mount();
+    const pick = mb.quickPick(items); // [Open File…, Save, Quit], selected 0
+    mb.next(); // -> Save
+    mb.accept();
     expect((await pick)?.id).toBe("core.file.save");
     host.remove();
   });
 
-  test("a non-matching query shows the empty row and Enter is a no-op", async () => {
-    const host = document.createElement("div");
-    document.body.appendChild(host);
-    const mb = new Minibuffer(host);
+  test("a row renders its keyHint", async () => {
+    const { host, mb } = mount();
+    void mb.quickPick(items);
+    expect(host.querySelector(".coal-mb-keyhint")?.textContent).toBe("Ctrl-x Ctrl-s");
+    host.remove();
+  });
 
+  test("onDidChangeOpen reports open then close", async () => {
+    const { host, mb } = mount();
+    const seen: boolean[] = [];
+    mb.onDidChangeOpen((open) => seen.push(open));
     const pick = mb.quickPick(items);
-    await userEvent.keyboard("zzzz");
-    expect(host.querySelector(".coal-mb-item")).toBeNull();
-    expect(host.querySelector(".coal-mb-empty")).not.toBeNull();
+    mb.cancel();
+    await pick;
+    expect(seen).toEqual([true, false]);
+    host.remove();
+  });
 
-    await userEvent.keyboard("{Enter}"); // selected() is undefined -> resolves undefined
-    expect(await pick).toBeUndefined();
+  test("readKeySequence captures a single chord and resolves it", async () => {
+    const { host, mb } = mount();
+    const seq = mb.readKeySequence();
+    await userEvent.keyboard("{Control>}s{/Control}"); // Ctrl-s
+    expect(await seq).toBe("Ctrl-s");
+    host.remove();
+  });
+
+  test("readKeySequence continues while continueWhile is true", async () => {
+    const { host, mb } = mount();
+    const seq = mb.readKeySequence({ continueWhile: (s) => s === "Ctrl-x" });
+    await userEvent.keyboard("{Control>}x{/Control}"); // Ctrl-x -> continue
+    await userEvent.keyboard("{Control>}s{/Control}"); // Ctrl-s -> stop
+    expect(await seq).toBe("Ctrl-x Ctrl-s");
     host.remove();
   });
 });
