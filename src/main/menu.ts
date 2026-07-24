@@ -5,8 +5,9 @@ import { IPC } from "../kernel/ipc/contract";
 
 /**
  * Native menu whose items send menu-command into the renderer's executeCommand.
- * registerAccelerator:false so the key is handled once, by the renderer keymap —
- * never two sources of truth (design §6).
+ * The keymap (not the menu) is the source of truth for keys; multi-stroke default
+ * bindings (e.g. Ctrl-x Ctrl-s) cannot be shown as native accelerators, so those
+ * items carry no accelerator label (design §6).
  */
 export function buildMenu(win: BrowserWindow): Menu {
   const send = (commandId: string) => (): void => win.webContents.send(IPC.menuCommand, commandId);
@@ -14,25 +15,10 @@ export function buildMenu(win: BrowserWindow): Menu {
     {
       label: "File",
       submenu: [
-        {
-          label: "Open File…",
-          accelerator: "CmdOrCtrl+O",
-          registerAccelerator: false,
-          click: send("core.file.open"),
-        },
-        {
-          label: "Save",
-          accelerator: "CmdOrCtrl+S",
-          registerAccelerator: false,
-          click: send("core.file.save"),
-        },
+        { label: "Open File…", click: send("core.file.open") },
+        { label: "Save", click: send("core.file.save") },
         { type: "separator" },
-        {
-          label: "Quit",
-          accelerator: "CmdOrCtrl+Q",
-          registerAccelerator: false,
-          click: send("core.app.quit"),
-        },
+        { label: "Quit", click: send("core.app.quit") },
       ],
     },
     {
