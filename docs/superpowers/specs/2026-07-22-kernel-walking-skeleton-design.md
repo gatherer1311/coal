@@ -49,7 +49,7 @@ order may shift as we learn. This roadmap is context, not a commitment:
 
 1. **PR #1 — walking skeleton** (this doc): Electron + CM6 + byte-exact open/save/quit through a minimal
    command registry.
-2. Command **minibuffer** (unified `M-x` / `:` / `/` surface) + `quickPick` primitive over the registry.
+2. Command **minibuffer** (the `M-x` + input surface) + `quickPick` primitive over the registry.
 3. **Config loader** + the kernel-owned `.coal/config/` tree (`settings.toml`, TOML round-trip).
 4. **Command + keybinding system** — a multi-stroke key-sequence resolver, `when`-context precedence, a
    curated default keymap, a plain-text `keybindings.toml` override + interactive bind flow, and the

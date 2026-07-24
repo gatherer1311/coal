@@ -35,7 +35,6 @@ so ~80–90% of the logic is unit-tested in plain Node.
 | `command/disposable.ts` | `Disposable` + `DisposableStore` — the auto-disposal ledger (reverse-order, idempotent). |
 | `command/types.ts` | `EditorFacade`, `CommandContext`, `Command`, `Keybinding`. |
 | `command/commandRegistry.ts` | `CommandRegistry` — `registerCommand` → `Disposable` (throws on dup id); the single `executeCommand(id, ctx)` choke point (throws on unknown id, no-ops when `isEnabled` is false). |
-| `command/keybindingRegistry.ts` | `KeybindingRegistry` — keys reference commands by string id; resolution/fall-through is the consumer's job. |
 | `io/types.ts` | `Encoding`, `Eol`, `DocMeta`, `DecodeResult`. |
 | `io/detect.ts` | `detectEncoding` (BOM + NUL-parity heuristic), `detectEol` (LF/CRLF; lone-CR → `mixedEol`), `hasFinalNewline`. |
 | `io/codec.ts` | `decode(bytes)` → LF-normalized text + metadata; `encode(text, meta)` → bytes. For a non-mixed file, `encode(decode(b).text, decode(b).meta)` byte-equals `b`. |
@@ -76,10 +75,10 @@ so ~80–90% of the logic is unit-tested in plain Node.
 
 ## Key flows
 
-- **Open.** `Ctrl-o` / menu / CLI arg → `core.file.open` → `coal.file.open()` → main shows the GTK
+- **Open.** `Ctrl-x Ctrl-f` / menu / CLI arg → `core.file.open` → `coal.file.open()` → main shows the GTK
   dialog, `fileService.openPath` reads + decodes, returns `{ id, text, meta }`. The renderer sets
   the editor text and remembers `currentDocId`. A CLI/second-instance path is pushed via `docOpened`.
-- **Byte-exact save.** `Ctrl-s` → `core.file.save` → `coal.file.save({ id, text })` → main. If the
+- **Byte-exact save.** `Ctrl-x Ctrl-s` → `core.file.save` → `coal.file.save({ id, text })` → main. If the
   text is unchanged, the **pristine bytes** are written back verbatim; otherwise `encode(text, meta)`
   re-applies the recorded encoding/BOM/EOL. Both codecs (future storage-codec, then text) live in
   main; the renderer only ever sees decoded text.
@@ -92,7 +91,7 @@ so ~80–90% of the logic is unit-tested in plain Node.
   leaves the window open.
 - **Config.** On boot the renderer's `ConfigClient.init()` calls `coal.config.load()` → main reads
   `settings.toml` (materializing the curated default when absent) → `tomlConfigCodec.parse` →
-  `kernel/config` `validate` → a `ConfigSnapshot` back to the renderer. `config.set({ keymap })` merges
+  `kernel/config` `validate` → a `ConfigSnapshot` back to the renderer. `config.set(patch)` merges
   the change into the full parsed object and `applyEdit`s it (comments + foreign keys preserved), atomic-
   writes, and broadcasts `config:changed`; `core.config.reload` re-reads external hand-edits. Config is
   the **user/global** scope (`SPEC.md` §9); the per-vault tree arrives with the workspace/PKM slices.

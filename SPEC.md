@@ -288,8 +288,8 @@ this section records the load-bearing ratified decisions.
 navigation; plugins do interpretation + enrichment.** The kernel holds the CodeMirror 6 editor engine
 and buffer model; byte-exact IO for any filetype (the §9 byte-for-byte guarantee, for *all* files);
 filetype identification + a generic "present as text" path; the **syntax-highlighting engine** (the
-per-language *grammars* are plugins); the **command registry + unified minibuffer + input-mode seam +
-the command substrate + keybinding system** (§6); the **workspace shell** (file-tree, quick switcher, windows-as-split,
+per-language *grammars* are plugins); the **command substrate + keybinding system + minibuffer** (§6);
+the **workspace shell** (file-tree, quick switcher, windows-as-split,
 per-window tabs, §14.1); the config loader + Settings UI + the kernel-owned config tree (§8.3, §9); the
 extension substrate itself (plugin loader + capability broker + typed host API); and the **privileged
 seams** (§8.2), declared but empty by default. Everything interpretive — Markdown/Org rich support and
@@ -1434,13 +1434,13 @@ stored as plain text per §9.
 The surfaces below **are** v1. Legend: *specced* = already ratified elsewhere in this document; *new* =
 ratified in this section; *own session* = on the v1 roadmap with its deep design tracked in `TODO.md`.
 
-**Layer (per §8).** The **kernel** owns the editor engine, the command / minibuffer core, both
-keymaps, the workspace shell, and Settings; every *interpretive* surface below — Live Preview, the
+**Layer (per §8).** The **kernel** owns the editor engine, the command + keybinding system + minibuffer,
+the workspace shell, and Settings; every *interpretive* surface below — Live Preview, the
 linking / knowledge cluster, the PKM surfaces, and the roadmap items — is **plugin-delivered** (bundled
 first-party, enabled in fully-outfitted Coal). "v1 surface" names *what* ships, not which layer owns it.
 
 - **Editor & command core** *(specced)* — the **kernel** editor engine with Live Preview + Source
-  (Live Preview delivered by the Markdown/Org plugin, §7); command palette + unified minibuffer,
+  (Live Preview delivered by the Markdown/Org plugin, §7); command palette + minibuffer,
   `M-x` (run command by name) (§6, §8); the command + keybinding system (kernel, §6).
 - **Workspace shell** *(new, §14.1; kernel)* — file-tree sidebar; windows-as-split; per-window tabs;
   quick switcher.
