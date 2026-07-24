@@ -3,10 +3,7 @@ import { ConfigClient } from "./config";
 import type { CoalApi } from "../kernel/ipc/contract";
 import type { ConfigSnapshot } from "../kernel/config/types";
 
-function fakeApi(initial: ConfigSnapshot): {
-  api: CoalApi;
-  fireChange(s: ConfigSnapshot): void;
-} {
+function fakeApi(initial: ConfigSnapshot): { api: CoalApi; fireChange(s: ConfigSnapshot): void } {
   let changeHandler: (s: ConfigSnapshot) => void = () => {};
   const api = {
     config: {
@@ -25,42 +22,35 @@ function fakeApi(initial: ConfigSnapshot): {
 
 describe("ConfigClient (design §6 reactive replica)", () => {
   test("init loads the snapshot into settings", async () => {
-    const { api } = fakeApi({ settings: { keymap: "vim" }, diagnostics: [] });
+    const { api } = fakeApi({ settings: {}, diagnostics: [] });
     const client = new ConfigClient(api);
     await client.init();
-    expect(client.settings).toEqual({ keymap: "vim" });
+    expect(client.settings).toEqual({});
   });
 
-  test("a config:changed push updates settings and notifies subscribers", async () => {
+  test("a config:changed push notifies subscribers", async () => {
     const { api, fireChange } = fakeApi({ settings: {}, diagnostics: [] });
     const client = new ConfigClient(api);
     await client.init();
-
     const seen: ConfigSnapshot[] = [];
     client.onChange((s) => seen.push(s));
-
-    fireChange({ settings: { keymap: "emacs" }, diagnostics: [] });
-    expect(client.settings).toEqual({ keymap: "emacs" });
+    fireChange({ settings: {}, diagnostics: [{ key: "foo", kind: "unknown-key", message: "x" }] });
     expect(seen).toHaveLength(1);
-    expect(seen[0]?.settings.keymap).toBe("emacs");
+    expect(seen[0]?.diagnostics).toHaveLength(1);
   });
 
-  test("a throwing listener does not stop later listeners or the update", async () => {
+  test("a throwing subscriber does not stop later subscribers", async () => {
     const { api, fireChange } = fakeApi({ settings: {}, diagnostics: [] });
     const client = new ConfigClient(api);
     await client.init();
-
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const seen: string[] = [];
     client.onChange(() => {
       throw new Error("boom");
     });
-    let secondFired = false;
     client.onChange(() => {
-      secondFired = true;
+      seen.push("second");
     });
-
-    fireChange({ settings: { keymap: "vim" }, diagnostics: [] });
-    expect(secondFired).toBe(true);
-    expect(client.settings).toEqual({ keymap: "vim" });
+    fireChange({ settings: {}, diagnostics: [] });
+    expect(seen).toEqual(["second"]);
   });
 });

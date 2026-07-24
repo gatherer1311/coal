@@ -51,4 +51,11 @@ describe("CommandRegistry (design §6 command spine)", () => {
     snapshot.pop();
     expect(registry.getCommands()).toHaveLength(1);
   });
+
+  test("registerCommand rejects an empty title (Law 1: minibuffer-addressable)", () => {
+    const registry = new CommandRegistry();
+    expect(() => registry.registerCommand({ id: "core.x", title: "", run: () => {} })).toThrow(
+      /title must be non-empty/,
+    );
+  });
 });

@@ -21,23 +21,12 @@ describe("IPC guards (design §3 runtime validation)", () => {
 });
 
 describe("isConfigSetRequest", () => {
-  test("accepts a valid keymap patch", () => {
-    expect(isConfigSetRequest({ patch: { keymap: "vim" } })).toBe(true);
-  });
-
   test("accepts an empty patch", () => {
     expect(isConfigSetRequest({ patch: {} })).toBe(true);
   });
-
-  test("rejects a non-object, a missing patch, and an out-of-range keymap", () => {
+  test("rejects a non-object, a missing patch, and any unknown key", () => {
     expect(isConfigSetRequest(null)).toBe(false);
     expect(isConfigSetRequest({})).toBe(false);
-    expect(isConfigSetRequest({ patch: { keymap: "kakoune" } })).toBe(false);
-    expect(isConfigSetRequest({ patch: { keymap: 3 } })).toBe(false);
-  });
-
-  test("rejects a patch with keys outside the kernel schema", () => {
-    expect(isConfigSetRequest({ patch: { bogus: 1 } })).toBe(false);
-    expect(isConfigSetRequest({ patch: { keymap: "vim", bogus: 1 } })).toBe(false);
+    expect(isConfigSetRequest({ patch: { anything: 1 } })).toBe(false);
   });
 });

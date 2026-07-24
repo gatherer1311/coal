@@ -9,6 +9,9 @@ export class CommandRegistry {
   #commands = new Map<string, Command>();
 
   registerCommand(command: Command): Disposable {
+    if (command.title.trim() === "") {
+      throw new Error(`command title must be non-empty: ${command.id}`);
+    }
     if (this.#commands.has(command.id)) {
       throw new Error(`command already registered: ${command.id}`);
     }

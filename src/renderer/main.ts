@@ -22,16 +22,7 @@ const minibuffer = new Minibuffer(document.body);
 const ctx: CommandContext = { editor: editor.facade };
 
 const config = new ConfigClient(window.coal);
-// Reflect the loaded keymap into the DOM — the reactive seam step 4's keymap
-// layer consumes (unset shows as ""). Also the e2e's observable.
-const reflectKeymap = (): void => {
-  document.body.dataset["coalKeymap"] = config.settings.keymap ?? "";
-};
-config.onChange(reflectKeymap);
-void config
-  .init()
-  .then(reflectKeymap)
-  .catch((err) => console.error("config init failed:", err));
+void config.init().catch((err) => console.error("config init failed:", err));
 
 store.add(
   commands.registerCommand({
