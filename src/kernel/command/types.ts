@@ -17,11 +17,17 @@ export interface Command {
   readonly id: string;
   readonly title: string;
   readonly category?: string;
+  /** Longer doc string, shown by Describe Command (design §3/§8). */
+  readonly description?: string;
   run(ctx: CommandContext): void | Promise<void>;
   isEnabled?(ctx: CommandContext): boolean;
 }
 
-/** A key -> command-id association. `when` is stored now, evaluated later (design §6). */
+/**
+ * A key-sequence -> command-id association (design §4). `keys` is a canonical
+ * space-joined chord sequence ("Ctrl-x Ctrl-s"); `when` is a boolean context
+ * expression, evaluated at resolve time (design §5).
+ */
 export interface Keybinding {
   readonly keys: string;
   readonly command: string;
