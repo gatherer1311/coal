@@ -14,7 +14,7 @@ export class ContextRegistry implements Context {
   #listeners = new Set<() => void>();
 
   set(name: string, value: boolean): void {
-    if (this.#values.get(name) === value) return;
+    if (this.isActive(name) === value) return;
     this.#values.set(name, value);
     for (const listener of this.#listeners) listener();
   }

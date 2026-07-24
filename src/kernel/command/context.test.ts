@@ -20,4 +20,15 @@ describe("ContextRegistry (design §5)", () => {
     r.set("editorFocused", false);
     expect(fires).toBe(2);
   });
+
+  test("setting a never-set context to false does not fire (already inactive)", () => {
+    const r = new ContextRegistry();
+    let fires = 0;
+    r.onDidChange(() => {
+      fires += 1;
+    });
+    r.set("x", false);
+    expect(fires).toBe(0);
+    expect(r.isActive("x")).toBe(false);
+  });
 });

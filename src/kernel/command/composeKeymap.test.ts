@@ -28,9 +28,12 @@ describe("composeKeymap (design §5 precedence)", () => {
   });
 
   test("a same-(keys, when) binding scoped differently coexists", () => {
-    const { bindings } = composeKeymap(defaults, [{ keys: "Ctrl-n", command: "core.file.open" }]);
+    const { bindings, diagnostics } = composeKeymap(defaults, [
+      { keys: "Ctrl-n", command: "core.file.open" },
+    ]);
     // one unscoped (new) + one minibufferOpen-scoped (default) both present
     expect(bindings.filter((b) => b.keys === "Ctrl-n")).toHaveLength(2);
+    expect(diagnostics).toEqual([]);
   });
 
   test("two user binds for the same (keys, when), different command, are a conflict (last wins)", () => {
