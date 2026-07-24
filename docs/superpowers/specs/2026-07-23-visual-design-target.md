@@ -43,6 +43,11 @@ The handoff bundle **as delivered**, plus reviewer conveniences:
 | [`coal-pkm.render.png`](assets/2026-07-23-visual-design-target/coal-pkm.render.png) · [`coal-base.render.png`](assets/2026-07-23-visual-design-target/coal-base.render.png) | Rendered reference screenshots (1360×820 @2×) — quick view without a browser. |
 | [`support.js`](assets/2026-07-23-visual-design-target/support.js) | The mockup's generic HTML→React rendering runtime. **Not Coal code** — kept only for bundle provenance; the HTML files render without it. |
 
+This whole `assets/` tree is **vendored, non-source reference material** — never built, imported, or
+shipped — so it is excluded from CodeQL scanning (`.github/codeql/codeql-config.yml`); the mockup
+runtime's `eval` / `Function` / `innerHTML` patterns are the renderer's, not Coal's. Coal's actual
+source is unaffected and still fully scanned.
+
 ## 1. The "Sublime" design tokens (the §8.1 anchor)
 
 `SPEC.md` §8.1 leaves the concrete variable *values* to "the pre-build visual design." These are those

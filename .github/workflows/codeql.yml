@@ -49,6 +49,9 @@ jobs:
           build-mode: none
           # Run the security queries AND the code-quality queries.
           queries: security-and-quality
+          # Excludes vendored, non-source design-reference assets (the visual
+          # design mockups embed a third-party rendering runtime) from scanning.
+          config-file: ./.github/codeql/codeql-config.yml
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@e0647621c2984b5ed2f768cb892365bf2a616ad1 # v4
