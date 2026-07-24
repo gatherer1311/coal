@@ -1,5 +1,12 @@
 import { QuickPickModel } from "../kernel/minibuffer/quickPick";
-import type { QuickPickItem, QuickPickOptions, RankedItem } from "../kernel/minibuffer/types";
+import { chordFromEvent } from "./keyInput";
+import { joinSequence } from "../kernel/command/keys";
+import type {
+  QuickPickItem,
+  QuickPickOptions,
+  RankedItem,
+  ReadKeySequenceOptions,
+} from "../kernel/minibuffer/types";
 
 const STYLE_ID = "coal-minibuffer-style";
 const CSS = `
@@ -15,6 +22,7 @@ const CSS = `
 .coal-mb-item.selected { background: #2f5d3a; }
 .coal-mb-match { font-weight: bold; color: #9be29b; }
 .coal-mb-desc { opacity: 0.6; margin-left: 1em; }
+.coal-mb-keyhint { margin-left: auto; padding-left: 1em; opacity: 0.7; }
 .coal-mb-empty { padding: 2px 8px; opacity: 0.6; }
 .coal-mb-input-row { display: flex; align-items: center; padding: 2px 8px; border-top: 1px solid #333; }
 .coal-mb-prompt { margin-right: 6px; opacity: 0.8; }
@@ -35,6 +43,8 @@ export class Minibuffer {
   #model: QuickPickModel | null = null;
   #resolve: ((item: QuickPickItem | undefined) => void) | null = null;
   #prevFocus: Element | null = null;
+  #capturingKeys = false;
+  #openListeners = new Set<(open: boolean) => void>();
 
   constructor(host: HTMLElement) {
     if (!document.getElementById(STYLE_ID)) {
@@ -65,7 +75,6 @@ export class Minibuffer {
       this.#model?.setQuery(this.#input.value);
       this.#render();
     });
-    this.#input.addEventListener("keydown", (e) => this.#onKeydown(e));
   }
 
   isOpen(): boolean {
@@ -84,42 +93,107 @@ export class Minibuffer {
     this.#render();
     this.#root.classList.add("open");
     this.#open = true;
+    this.#emitOpen(true);
     this.#input.focus();
     return new Promise((resolve) => {
       this.#resolve = resolve;
     });
   }
 
-  #onKeydown(e: KeyboardEvent): void {
-    if (!this.#open || e.isComposing) return;
-    const down = e.key === "ArrowDown" || (e.ctrlKey && e.key === "n");
-    const up = e.key === "ArrowUp" || (e.ctrlKey && e.key === "p");
+  /** Accept the highlighted item (design §5: core.minibuffer.accept). */
+  accept(): void {
+    this.#finish(this.#model?.selected());
+  }
 
-    if (e.key === "Enter") {
-      this.#finish(this.#model?.selected());
-    } else if (e.key === "Escape") {
-      this.#finish(undefined);
-    } else if (down) {
-      this.#model?.moveDown();
-      this.#render();
-    } else if (up) {
-      this.#model?.moveUp();
-      this.#render();
-    } else {
-      return; // ordinary typing flows into the input (fires the 'input' listener)
-    }
-    e.preventDefault();
-    e.stopPropagation();
+  /** Cancel with no selection (core.minibuffer.cancel / core.abort). */
+  cancel(): void {
+    this.#finish(undefined);
+  }
+
+  next(): void {
+    this.#model?.moveDown();
+    this.#render();
+  }
+
+  prev(): void {
+    this.#model?.moveUp();
+    this.#render();
+  }
+
+  isCapturingKeys(): boolean {
+    return this.#capturingKeys;
+  }
+
+  onDidChangeOpen(cb: (open: boolean) => void): () => void {
+    this.#openListeners.add(cb);
+    return () => {
+      this.#openListeners.delete(cb);
+    };
+  }
+
+  /**
+   * Capture a raw chord sequence (design §7). Resolves the canonical sequence,
+   * or undefined if the user aborts (Escape on an empty sequence). While active,
+   * isCapturingKeys() is true so the app input path defers to this capture.
+   */
+  readKeySequence(opts: ReadKeySequenceOptions = {}): Promise<string | undefined> {
+    this.#prevFocus = document.activeElement;
+    this.#promptEl.textContent = opts.prompt ?? "Key:";
+    this.#input.value = "";
+    this.#input.placeholder = opts.placeholder ?? "Type a key sequence";
+    this.#list.textContent = "";
+    this.#root.classList.add("open");
+    this.#open = true;
+    this.#capturingKeys = true;
+    this.#emitOpen(true);
+    this.#input.focus();
+
+    const chords: string[] = [];
+    const continueWhile = opts.continueWhile ?? ((): boolean => false);
+
+    return new Promise((resolve) => {
+      const finish = (value: string | undefined): void => {
+        window.removeEventListener("keydown", onKey, true);
+        this.#capturingKeys = false;
+        this.#closeOverlay();
+        resolve(value);
+      };
+      const onKey = (e: KeyboardEvent): void => {
+        if (e.isComposing) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        const chord = chordFromEvent(e);
+        if (chord === null) return; // a lone modifier
+        if (chord === "Escape" && chords.length === 0) {
+          finish(undefined);
+          return;
+        }
+        chords.push(chord);
+        const sequence = joinSequence(chords);
+        this.#input.value = sequence;
+        if (!continueWhile(sequence)) finish(sequence);
+      };
+      window.addEventListener("keydown", onKey, true);
+    });
   }
 
   #finish(item: QuickPickItem | undefined): void {
-    this.#root.classList.remove("open");
-    this.#open = false;
     const resolve = this.#resolve;
     this.#resolve = null;
     this.#model = null;
-    if (this.#prevFocus instanceof HTMLElement) this.#prevFocus.focus();
+    this.#closeOverlay();
     resolve?.(item);
+  }
+
+  #closeOverlay(): void {
+    this.#root.classList.remove("open");
+    this.#open = false;
+    this.#emitOpen(false);
+    if (this.#prevFocus instanceof HTMLElement) this.#prevFocus.focus();
+  }
+
+  #emitOpen(open: boolean): void {
+    for (const listener of this.#openListeners) listener(open);
   }
 
   #render(): void {
@@ -157,6 +231,13 @@ export class Minibuffer {
       desc.className = "coal-mb-desc";
       desc.textContent = r.item.description;
       li.appendChild(desc);
+    }
+
+    if (r.item.keyHint) {
+      const hint = document.createElement("span");
+      hint.className = "coal-mb-keyhint";
+      hint.textContent = r.item.keyHint;
+      li.appendChild(hint);
     }
     return li;
   }
