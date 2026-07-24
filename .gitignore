@@ -34,6 +34,8 @@ app/dist/
 coverage/
 .nyc_output/
 test-results/
+.vitest-attachments/
+src/renderer/__screenshots__/
 
 # Caches
 .cache/
