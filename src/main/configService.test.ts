@@ -53,4 +53,17 @@ describe("ConfigService (design §3/§6/§9 global config layer)", () => {
     expect(snap.diagnostics[0]).toMatchObject({ kind: "parse-error" });
     expect(await readFile(svc.path, "utf-8")).toBe(bad);
   });
+
+  test("set with an empty patch succeeds, writes the file, and emits", async () => {
+    const svc = new ConfigService(dir);
+    await svc.load();
+    let emitted = 0;
+    svc.onDidChangeConfig(() => {
+      emitted += 1;
+    });
+    const res = await svc.set({});
+    expect(res).toEqual({ ok: true });
+    expect(existsSync(svc.path)).toBe(true);
+    expect(emitted).toBe(1);
+  });
 });

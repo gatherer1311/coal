@@ -14,4 +14,12 @@ describe("validate (design §5 non-destructive kernel-settings validation)", () 
       { key: "bar", kind: "unknown-key", message: 'unknown setting "bar" (left untouched)' },
     ]);
   });
+
+  test("keymap is no longer special - it is now just another unknown key", () => {
+    const { settings, diagnostics } = validate({ keymap: "vim" });
+    expect(settings).toEqual({});
+    expect(diagnostics).toEqual([
+      { key: "keymap", kind: "unknown-key", message: 'unknown setting "keymap" (left untouched)' },
+    ]);
+  });
 });

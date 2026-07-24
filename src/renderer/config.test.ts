@@ -38,4 +38,19 @@ describe("ConfigClient (design §6 reactive replica)", () => {
     expect(seen).toHaveLength(1);
     expect(seen[0]?.diagnostics).toHaveLength(1);
   });
+
+  test("a throwing subscriber does not stop later subscribers", async () => {
+    const { api, fireChange } = fakeApi({ settings: {}, diagnostics: [] });
+    const client = new ConfigClient(api);
+    await client.init();
+    const seen: string[] = [];
+    client.onChange(() => {
+      throw new Error("boom");
+    });
+    client.onChange(() => {
+      seen.push("second");
+    });
+    fireChange({ settings: {}, diagnostics: [] });
+    expect(seen).toEqual(["second"]);
+  });
 });
