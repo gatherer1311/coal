@@ -1,13 +1,12 @@
 // src/renderer/editor.ts
-import { Compartment, EditorState, Prec } from "@codemirror/state";
+import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import type { EditorFacade, Keybinding } from "../kernel/command/types";
+import type { EditorFacade } from "../kernel/command/types";
 
 export interface EditorHandle {
   facade: EditorFacade;
   view: EditorView;
-  setBindings(bindings: Keybinding[], dispatch: (commandId: string) => boolean): void;
   destroy(): void;
 }
 
@@ -15,7 +14,6 @@ export function createEditor(
   parent: HTMLElement,
   onDirtyChange: (dirty: boolean) => void,
 ): EditorHandle {
-  const keymapCompartment = new Compartment();
   let dirty = false;
   let programmatic = false;
 
@@ -32,7 +30,6 @@ export function createEditor(
       extensions: [
         history(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
-        keymapCompartment.of([]),
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !programmatic) setDirty(true);
         }),
@@ -56,19 +53,6 @@ export function createEditor(
   return {
     facade,
     view,
-    setBindings: (bindings, dispatch) => {
-      const appKeymap = Prec.high(
-        keymap.of(
-          bindings.map((binding) => ({
-            key: binding.keys,
-            preventDefault: true,
-            // Consume the key only if dispatch ran a command; otherwise fall through.
-            run: () => dispatch(binding.command),
-          })),
-        ),
-      );
-      view.dispatch({ effects: keymapCompartment.reconfigure(appKeymap) });
-    },
     destroy: () => view.destroy(),
   };
 }

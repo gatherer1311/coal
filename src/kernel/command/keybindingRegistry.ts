@@ -28,15 +28,6 @@ export class KeybindingRegistry {
     this.#bindings = [...bindings];
   }
 
-  getBindings(): Keybinding[] {
-    return [...this.#bindings];
-  }
-
-  /** Exact-sequence bindings (any context). */
-  getBindingsForKeys(keys: string): Keybinding[] {
-    return this.#bindings.filter((binding) => binding.keys === keys);
-  }
-
   /** Reverse lookup: every binding pointing at a command id (design §8, where-is). */
   getBindingsForCommand(command: string): Keybinding[] {
     return this.#bindings.filter((binding) => binding.command === command);
