@@ -5,6 +5,7 @@ import { existsSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { IPC } from "../kernel/ipc/contract";
 import { ConfigService } from "./configService";
+import { KeybindingsService } from "./keybindingsService";
 import { FileService } from "./fileService";
 import { isTrustedUrl } from "./guards";
 import { registerIpc } from "./ipc";
@@ -45,6 +46,7 @@ if (!app.requestSingleInstanceLock()) {
   let hasDoc = false;
   const fileService = new FileService();
   const configService = new ConfigService(app.getPath("userData"));
+  const keybindingsService = new KeybindingsService(app.getPath("userData"));
   // Trailing slash makes the prefix an origin boundary, so a look-alike host
   // (e.g. localhost:5173.evil) can't satisfy the startsWith trust check (design §3).
   const allowedOrigins = devUrl ? [devUrl.endsWith("/") ? devUrl : `${devUrl}/`] : ["app://coal/"];
@@ -94,9 +96,17 @@ if (!app.requestSingleInstanceLock()) {
       mainWindow?.webContents.send(IPC.configChanged, snapshot);
     });
 
+    void keybindingsService
+      .load() // materialize on first run, before the renderer asks
+      .catch((err) => console.error("initial keybindings load failed:", err));
+    keybindingsService.onDidChange((snapshot) => {
+      mainWindow?.webContents.send(IPC.keybindingsChanged, snapshot);
+    });
+
     registerIpc({
       fileService,
       configService,
+      keybindingsService,
       getWindow: () => mainWindow,
       isTrustedSender: (event) => isTrustedUrl(event.senderFrame?.url, allowedOrigins),
       onSetDirty: (value) => {
