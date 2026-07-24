@@ -56,10 +56,10 @@ Non-negotiables. Every downstream decision must be consistent with them.
    privacy is one toggle away, and plaintext workflows — a shared or company repo — are equally
    first-class.
 4. **Keyboard-first.** The editor, the minibuffer, and constantly-used quick-access features are
-   driven from the keyboard, with **first-class Emacs *and* Vim keymaps** (chosen at first run and
-   fully switchable, §6). Mouse interaction is first-class where it genuinely wins (e.g. the visual
-   graph) and available-in-addition where useful — but the core editing loop never *requires* the
-   mouse.
+   driven from the keyboard, with a single, Emacs-modeled **command + keybinding system** (a curated
+   default keymap, every command rebindable via plain-text config). Mouse interaction is first-class
+   where it genuinely wins (e.g. the visual graph) and available-in-addition where useful — but the
+   core editing loop never *requires* the mouse.
 5. **A minimal kernel; everything else is a plugin.** A single command / extension system. The
    irreducible **kernel** is a real, usable editor with zero plugins; Coal's whole feature set —
    Markdown/Org rich editing, linking/PKM, Git, encryption, search, and the rest — is retained but
@@ -143,69 +143,46 @@ _(Graph/visual-rendering library and similar specifics are tracked in `TODO.md` 
 
 ## 6. Interaction model
 - **Keyboard-first**, for the editor, the minibuffer, and constantly-used quick-access features.
-- **Two first-class keymaps out of the box: Emacs *and* Vim.** Both ship, both are fully supported,
-  and the user **chooses at first run** (there is no baked-in default); the choice is a declarative
-  editor setting (§9) that can be switched at any time.
-  - **Delivery — both keymaps live in the kernel.** The **command substrate** (§8), the
-    **minibuffer**, the **input-mode seam**, **and both full keymaps (Emacs and Vim)** are part of
-    the **kernel** — not opt-in plugins. The input layer is fundamental to a keyboard-first editor, so
-    keeping both suites in the kernel resolves the "must be operable out of the box" + "must pick a
-    keymap" tension: the zero-plugin kernel is already fully drivable, and there is **no baked-in
-    default** — first launch prompts Emacs-or-Vim and writes the choice to config (if config already
-    declares one, no prompt). The keymaps still **bind through the public command / keybinding API**
-    (so that seam is dogfooded like everything else), and binding keys is a **baseline** plugin
-    ability requiring no capability (§8.2) — so later **community keymaps remain a natural, safe
-    extension** as ordinary plugins, touching no files, keys, or network.
-  - **Full feature parity.** Every Coal command is reachable in **both** keymaps; each binding is
-    modeled on the **closest counterpart in its respective editor** (e.g. save is Emacs `C-x C-s`
-    and Vim `:w`, both resolving to the one registry command). Where a concept is native to only one
-    paradigm (Vim text objects; Emacs marks/registers), each keymap expresses the shared underlying
-    command in its own idiom. Parity is a maintained invariant, mirroring the §5 "both formats
-    first-class" rule applied to input. **Parity means coverage + idiom, not a behavioral
-    reimplementation of either editor** — see §6.1 for exactly what the keymaps are and are not.
-  - **Vim modes are fully supported**, via the same command substrate: normal / insert / visual (and
-    the rest), operators, and text objects.
-  - **The minibuffer is unified — one element, two personalities.** In Emacs mode it is `M-x` /
-    `M-:`; in Vim mode the *same* surface renders the **`:` ex command line**, **`/` search**, and
-    the **mode indicator** (`-- NORMAL --`, `-- INSERT --`, `-- VISUAL --`). Ex commands (`:w`,
-    `:q`, `:wq`) resolve to the same registry commands as their Emacs counterparts.
-- **Not keyboard-*only*.** Where an interaction is genuinely better with a mouse (the visual graph
-  is the canonical example), that is a first-class mouse experience.
+- **One command-and-keybinding system, modeled on Emacs.** Every action in the app is a named
+  **command**; every command is addressable **by name in the minibuffer**; and any command **may**
+  carry one or more user-definable **keybindings** over a curated default keymap that ships out of the
+  box. Keys bind to command **ids**, never to code, so rebinding never touches a handler.
+  - **Delivery - the command substrate + keybinding system + minibuffer are the kernel.** The command
+    registry, the multi-stroke key-sequence resolver, the `when`-context model, the curated default
+    keymap, and the minibuffer are part of the **kernel**, not opt-in plugins - the input layer is
+    fundamental to a keyboard-first editor. Bindings are **data**: a curated default table plus a
+    plain-text `keybindings.toml` override (§9), dogfooded through the same public command / keybinding
+    API a plugin uses. Binding keys is a **baseline** plugin ability requiring no capability (§8.2), so
+    **community keymaps remain a natural, safe extension** as ordinary plugins.
+  - **Discoverability is first-class.** The palette annotates each command with its current binding
+    (Emacs `where-is`); a **which-key** panel lists the continuations of a pending prefix; and
+    **Describe Key / Describe Command** report the command <-> key relation in a lightweight echo area.
+  - **Single editing mode.** Coal is single-mode ("always insert"): CodeMirror owns the text buffer and
+    all editing, and the command layer sits above it, claiming only app-level chords/sequences - any
+    chord it does not bind falls through to the editor. There is no modal engine and no input-mode seam.
+  - **The minibuffer has one personality:** run a command by name (`M-x`) and read input (a line, a
+    quick-pick, or a raw key sequence). There is no `:` ex-line, `/` search line, or mode indicator.
+- **Not keyboard-*only*.** Where an interaction is genuinely better with a mouse (the visual graph is
+  the canonical example), that is a first-class mouse experience.
 - **Both, where useful.** Features may expose both keyboard and mouse paths; the constraint is only
   that the core editing environment is fully operable from the keyboard.
 
-### 6.1 Keymaps as convention templates — Coal's commands, borrowed idioms
+### 6.1 Commands, keybindings, and contexts
 
-The Emacs and Vim keymaps are **default keybinding templates Coal populates with its own commands —
-not reimplementations of Emacs or Vim.** This is stated explicitly here so it is never re-litigated:
+The system is modeled on Emacs, not a clone (see the design doc for the deliberate divergences). The
+load-bearing rules:
 
-- **The command set is entirely Coal's.** Coal defines its own commands; it does not reproduce
-  Emacs's or Vim's command inventory. Each keymap is a curated set of key → `commandId` bindings
-  over *that* command set — a template we plug our commands into, kept relatively true to each
-  platform's keybinding philosophy.
-- **Derivation runs Coal-outward.** For each Coal command we choose an Emacs-idiom key **and** a
-  Vim-idiom key, guided by how each editor *would* bind an action of that nature — staying true to
-  each platform's philosophy (Emacs: chorded modifiers, `C-x` / `C-c` prefixes, non-modal; Vim:
-  modal normal / insert / visual, operator + motion, leader, the `:` ex-line). We do **not** start
-  from either editor's keymap and replicate it inward.
-- **A binding is not inherited just because the source editor has it.** Where Emacs or Vim binds a
-  key to a command Coal has no analog for — e.g. Emacs `M-$` → `ispell-word`, which Coal does not
-  have — that key is simply **unbound**: free to be assigned to a fitting Coal command later, or
-  left unused. Nothing is ever mapped to a command that does not exist.
-- **Coal-original commands get invented idiomatic bindings.** A command with no Emacs or Vim
-  ancestor (e.g. a PKM/linking action) is still bound in **both** templates, using a key **in the
-  spirit of** each platform (an Emacs `C-c`-style user binding; a Vim `<leader>` / `g`-prefix
-  binding), rather than borrowed from prior art.
-- **Parity is coverage + idiom, not behavior.** "First-class in both keymaps" means every Coal
-  command is **reachable and idiomatic in both** — *not* that Coal replicates either editor's
-  editing model, modal engine, or minibuffer internals. Both keymaps bind through the one public
-  command / keybinding API (§8) to the same registry commands, so neither has a path the other
-  lacks, and "every command is bound in both" is a **maintained, testable** invariant.
-
-The upshot: we implement Coal's own functions and commands, plug them into the two templates under
-each platform's conventions, and adjust a template only where Coal's command set genuinely diverges
-from what that editor's keys assume — no 1:1 cloning of either program's commands, functions, or
-keybindings.
+- **Every user-triggerable behavior is a registered command** with a non-empty title, routed through
+  one `executeCommand` choke point - menus, buttons, the palette, and every keybinding are front-ends
+  that dispatch a command id. **Keys bind to command ids, never to code.**
+- **The curated default keymap is Emacs-flavored and fully overridable.** `keybindings.toml` (§9) is the
+  source of truth for overrides: layer a binding over a default, scope it to a `when` context, or remove
+  it with an unbind. Precedence is explicit - config over default, scoped over unscoped, with genuine
+  clashes surfaced as config diagnostics.
+- **Typing is CodeMirror's, not a command.** The command layer is a thin pre-dispatch above the editor
+  engine; only app-level chords/sequences are claimed. Modal editing is out of scope for the kernel - if
+  ever wanted, it is an ordinary future plugin on the same commands + keybindings + contexts, with no
+  privileged hook.
 
 ---
 
@@ -312,7 +289,7 @@ navigation; plugins do interpretation + enrichment.** The kernel holds the CodeM
 and buffer model; byte-exact IO for any filetype (the §9 byte-for-byte guarantee, for *all* files);
 filetype identification + a generic "present as text" path; the **syntax-highlighting engine** (the
 per-language *grammars* are plugins); the **command registry + unified minibuffer + input-mode seam +
-both full keymaps** (§6); the **workspace shell** (file-tree, quick switcher, windows-as-split,
+the command substrate + keybinding system** (§6); the **workspace shell** (file-tree, quick switcher, windows-as-split,
 per-window tabs, §14.1); the config loader + Settings UI + the kernel-owned config tree (§8.3, §9); the
 extension substrate itself (plugin loader + capability broker + typed host API); and the **privileged
 seams** (§8.2), declared but empty by default. Everything interpretive — Markdown/Org rich support and
@@ -433,7 +410,7 @@ privileged startup/storage seam is detailed in the design doc §11).
 The whole `<vault>/.coal/config/` tree is **kernel-owned; no plugin can write it** — structural
 privilege separation, so a plugin cannot enable itself or edit the config layer. It sits alongside the
 Overlay / index / cache trees under `.coal/` (§13.8). This tree is the **vault/project** config scope;
-**user-preference** kernel settings (keymap choice, editor-engine basics, theme) live in the separate
+**user-preference** kernel settings (keybindings, editor-engine basics, theme) live in the separate
 **user/global** scope (`$XDG_CONFIG_HOME/coal`, §9), so the kernel is fully configurable with no vault
 open. Both scopes are kernel-owned.
 
@@ -450,7 +427,7 @@ open. Both scopes are kernel-owned.
 ```
 
 - **`settings.toml`** (vault scope) holds **vault-scoped kernel options and per-vault overrides** — a
-  small set. **User-preference kernel settings** — keymap choice, editor-engine basics, theme — live in
+  small set. **User-preference kernel settings** — keybindings, editor-engine basics, theme — live in
   the **user/global** `settings.toml` (`$XDG_CONFIG_HOME/coal`, §9) and travel with the user, not the
   repo, so the editor is fully configurable with no vault open. (Most "settings" are really plugin
   settings anyway; Live Preview itself is a plugin.)
@@ -484,7 +461,7 @@ open. Both scopes are kernel-owned.
 - **Goals:** declarative configuration, reproducibility, and hassle-free transfer of a full editor
   setup from machine to machine (drop the files in, done).
 - **Two config scopes, by ownership (§8.3).** Configuration is scoped by *who owns a setting*, not by
-  where a tree sits. **User/global scope** — user-preference kernel settings (keymap choice,
+  where a tree sits. **User/global scope** — user-preference kernel settings (keybindings,
   editor-engine basics, theme) — lives per-user (`$XDG_CONFIG_HOME/coal` on Linux) and travels with the
   **user**; it is available with no vault open (the kernel is a usable editor with zero plugins, §8).
   **Vault/project scope** — vault-scoped config (plugin enablement, encryption, per-vault overrides) —
@@ -1441,7 +1418,7 @@ command substrate + minibuffer), while giving Obsidian switchers the chrome they
   `{ filename stem, first H1, aliases }` name set the backlinks scan uses (§13.14), each reduced through
   the frozen normalizer (§13.11), so "find" and "link" agree on what a note is called.
 - **Windows as the split primitive** — frame layout is the Emacs **window** model: split (`C-x 2` /
-  `C-x 3`; Vim `:sp` / `:vsp`), move focus, balance, and close, each window showing one note. Mouse
+  `C-x 3`), move focus, balance, and close, each window showing one note. Mouse
   drag-to-split is additive. Coal **does not** adopt a separate Obsidian-style "tab-group" abstraction —
   a window already is the unit of layout, and a second one would double-model it.
 - **Tabs** — a **per-window** buffer strip (a tab-line) listing that window's open notes; **default-on**,
@@ -1464,7 +1441,7 @@ first-party, enabled in fully-outfitted Coal). "v1 surface" names *what* ships, 
 
 - **Editor & command core** *(specced)* — the **kernel** editor engine with Live Preview + Source
   (Live Preview delivered by the Markdown/Org plugin, §7); command palette + unified minibuffer,
-  `M-x` / `M-:` / Vim `:` + `/` (§6, §8); both **Emacs & Vim keymaps** (kernel, §6).
+  `M-x` (run command by name) (§6, §8); the command + keybinding system (kernel, §6).
 - **Workspace shell** *(new, §14.1; kernel)* — file-tree sidebar; windows-as-split; per-window tabs;
   quick switcher.
 - **Linking & knowledge** — wikilink navigation & resolution (§13.5, *specced*); the **Links panel**,
@@ -1541,3 +1518,4 @@ frontmatter is editing text, like any other line.
 | 2026-07-22 | **Kernel/plugin pivot (§1/§2/§8; touches §4/§6/§7/§10/§13/§14).** Re-found the core/plugin split around a **minimal, general-purpose, keyboard-first kernel** (raw presentation + navigation; usable with zero plugins) and **re-home the entire feature set as bundled first-party plugins** on the public API (Markdown/Org + Live Preview, linking/PKM, **Git**, **encryption**, search, tags, templates, …). The kernel dogfoods the **same public API** (core-as-plugins made *literal*). **Both keymaps, the syntax-highlighting engine, and the workspace shell move into the kernel**; grammars are auto-activating passive-provider plugins; official feature plugins are bundled **off by default**. **Two-tier trust:** first-party bundled = fully trusted (only tier eligible for the privileged class); third-party = blocked-by-default (one global gate) + realm-bounded to declared, scoped, least-privilege caps under informed per-plugin consent. **Capability catalogue** (`document`/`vault`/`network`/`process`/`clipboard`) + **privileged class** (`storage-codec`/`startup-gate`/`key-custody`, first-party only; no `ambient`/raw-Node cap). Config surface = kernel-owned `.coal/config/` tree (`settings.toml` + `plugins.toml` roster + `plugins/<id>.toml`), replacing `.coal/config/PLUGINS.<ext>`. Manifest = `plugin.toml`; host API SemVer with an N-1 compatibility window + graceful degrade; lifecycle = lazy activation + hot enable/disable + kernel auto-disposal ledger + error isolation; third-party = pre-built-JS-only over open-source git repos, manual updates. **Supersedes in part** the 2026-07-21 "encryption stays core / storage seam deferred," "keymaps as bundled official plugins," "core-vs-plugin split stays open," and "`PLUGINS.<ext>`" decisions (marked above). Theming is a separate, queued design session. Full design: [`docs/superpowers/specs/2026-07-22-plugin-system-design.md`](docs/superpowers/specs/2026-07-22-plugin-system-design.md). | The prior spec baked PKM / encryption / git in as privileged **core**, so "core-as-plugins" was aspirational, not load-bearing. Re-homing them as first-party plugins makes it structural — a feature the flagship suite can't reach is an API gap **by construction** — and yields a small, fast, hackable substrate whose value *is* the extension API. It is a re-homing, **not a feature cull**: what changes is the layer, the delivery (opt-in), and the trust anchor (core-membership → first-party bundling). Encryption stays tractable because the privileged class it needs is reserved to first-party-audited code, and the kernel never learns crypto. Keymaps go to the kernel because a keyboard-first editor must be operable with zero plugins. |
 | 2026-07-23 | **Config is two-scope-by-ownership (§9 / §8.3).** Configuration is scoped by *who owns a setting*, not by tree location. **User/global scope** — user-preference kernel settings (keymap choice, editor-engine basics, theme) — lives per-user (`$XDG_CONFIG_HOME/coal`) and travels with the **user**, available with no vault open. **Vault/project scope** — plugin enablement, encryption, per-vault overrides — stays in `<vault>/.coal/config/` and travels with the **repo** (§9). Re-homes §8.3's kernel-user `settings.toml` keys to the global layer; the vault tree keeps vault-scoped config. **Kernel build-sequence step 3 builds only the global layer** — the config loader + schema + comment-preserving TOML round-trip (via `@decimalturn/toml-patch`, kept in `main` so `kernel/` stays dependency-free) + the `keymap` slot (unset, persisted for step 4's first-run prompt); the vault layer arrives with the workspace/PKM slices. Full design: [`docs/superpowers/specs/2026-07-23-config-loader-design.md`](docs/superpowers/specs/2026-07-23-config-loader-design.md). | The kernel is a usable editor that needs no vault (the editor identity), while the vault is a PKM-plugin concept (linking/Git/encryption need a bounded root) — so kernel-user config naturally travels with the user and vault config with the repo, the VS Code User-vs-Workspace / Obsidian app-vs-vault split. Resolves the "config has no home when no vault is open" gap the kernel build exposed, without walking back either identity; §9's plain-text / version-control invariants hold per scope. |
 | 2026-07-23 | **Visual design target filed (§8.1 / §14; pre-build gate).** The Claude-Design mockup of the main window is filed as the of-record visual reference: one shared shell + "Sublime" theme in two layouts — **PKM** (explorer / tabbed markdown editor / per-pane modeline / right context panel: local graph, properties, outline, linked mentions) and **base editor** (full-width tabs, syntax-highlighted code buffer, minimal modeline) — both bottoming out in the Emacs `M-x` minibuffer. **Anchors the concrete "Sublime" palette** §8.1 defers to "the pre-build visual design" (pure-black background, accent `#b8e62d` = `--accent`, full text/surface/border ramp + JetBrains Mono type scale), turning §8.1's value slot from open to referenced (variable *names* still land with the first themable surfaces). Records the build-sequence mapping (chrome = shell step 7; PKM panels = plugin substrate step 5 + docks; look = the queued theming session) and does **not** reprioritize — step 4 remains next. **Not fully "agreed" yet:** the mockup omits several §14 roster surfaces (bidirectional Links panel §13.14, Dangling §13.9, quick switcher, Settings UI, hover preview, Vim command-line minibuffer), and one item is **open, not resolved** — the PROPERTIES panel vs. §14 "no GUI properties editor" (as drawn it is read-only, which may be compatible; needs an explicit call). Full record: [`docs/superpowers/specs/2026-07-23-visual-design-target.md`](docs/superpowers/specs/2026-07-23-visual-design-target.md). | The `TODO.md` pre-build gate wants a concrete visual target so UI is built toward a picture, not designed ad hoc mid-build; filing the mockup as-of-record + anchoring the Sublime values gives the later theming/shell steps something to aim at, while flagging (not silently absorbing) both the roster gaps and the one ratified-boundary tension keeps the gate honestly open rather than prematurely closed. |
+| 2026-07-24 | **Command + keybinding system (supersedes the dual-keymap decisions above).** Dropped the two first-class keymaps (Emacs + Vim), the parity invariant, modal editing, the two-personality minibuffer, and the first-run keymap prompt. Adopted Emacs's command architecture directly: one curated default keymap, every command minibuffer-addressable, any command user-bindable via `keybindings.toml`. See [`docs/superpowers/specs/2026-07-24-command-keybinding-system-design.md`](docs/superpowers/specs/2026-07-24-command-keybinding-system-design.md). | The dual-keymap model (§6, superseded) carried a maintained parity invariant, a two-personality minibuffer, and a first-run prompt for a payoff — full Emacs- and Vim-idiom coverage — that cost more to build and keep consistent than it delivered; a single Emacs-modeled command + keybinding system keeps every command minibuffer-addressable and user-rebindable via plain-text `keybindings.toml`, with community keymaps still reachable as an ordinary plugin (§8.2). |

@@ -20,9 +20,9 @@ suite enabled. (Passive providers such as syntax **grammars** are the exception:
 side-effect-free, they auto-activate by filetype and are not itemized here.)
 
 **Kernel, not plugins.** Some things the prior draft treated as candidate plugins are now part of the
-**kernel** and are therefore **not** listed here: **both keymaps (Emacs and Vim)**, the **command
-substrate + unified minibuffer + input-mode seam** (§6), the **syntax-highlighting engine** (§8), and
-the **workspace shell** (file-tree, quick switcher, windows-as-split, tabs; §14.1).
+**kernel** and are therefore **not** listed here: the **command substrate + keybinding system +
+minibuffer** (§6), the **syntax-highlighting engine** (§8), and the **workspace shell** (file-tree,
+quick switcher, windows-as-split, tabs; §14.1).
 
 Legend: `[x]` committed (decided in `SPEC.md`) · `[ ]` proposed (candidate in `TODO.md`).
 
@@ -83,8 +83,7 @@ deep-design session tracked in [`TODO.md`](TODO.md):
 - **Themes are a sibling system, not plugins.** A theme installs through the plugin *path* but is
   declarative CSS-variable data with no executable code (§8.1); the bundled default theme **Sublime**
   is delivered that way and is not listed here.
-- **Community keymaps** are a natural, safe extension: with both first-party keymaps now in the kernel,
-  a third-party keymap is an **ordinary plugin** — binding keys is a **baseline** ability requiring no
-  capability (§8.2), and it touches no files, keys, or network. (This replaces the earlier "input-mode
-  seam is community-open, unlike the first-party-only privileged seams" framing — the seam itself is
-  kernel now, §6.)
+- **Community keymaps** are a natural, safe extension: with the command + keybinding system in the
+  kernel, a third-party keymap is an **ordinary plugin** — binding keys is a **baseline** ability
+  requiring no capability (§8.2), touching no files, keys, or network. It is now the only
+  keymap-authoring story (there is no first-party dual-keymap suite to match).
