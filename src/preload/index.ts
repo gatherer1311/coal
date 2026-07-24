@@ -6,6 +6,10 @@ import type {
   ConfigSetRequest,
   ConfigSetResult,
   ConfigSnapshot,
+  KeybindingBindRequest,
+  KeybindingUnbindRequest,
+  KeybindingWriteResult,
+  KeybindingsSnapshot,
   OpenDocResult,
   OpenResult,
   SaveRequest,
@@ -30,6 +34,15 @@ const api: CoalApi = {
     reload: (): Promise<ConfigSnapshot> => ipcRenderer.invoke(IPC.configReload),
     openInEditor: (): Promise<OpenResult> => ipcRenderer.invoke(IPC.configOpen),
   },
+  keybindings: {
+    load: (): Promise<KeybindingsSnapshot> => ipcRenderer.invoke(IPC.keybindingsLoad),
+    reload: (): Promise<KeybindingsSnapshot> => ipcRenderer.invoke(IPC.keybindingsReload),
+    bind: (req: KeybindingBindRequest): Promise<KeybindingWriteResult> =>
+      ipcRenderer.invoke(IPC.keybindingsBind, req),
+    unbind: (req: KeybindingUnbindRequest): Promise<KeybindingWriteResult> =>
+      ipcRenderer.invoke(IPC.keybindingsUnbind, req),
+    openInEditor: (): Promise<OpenResult> => ipcRenderer.invoke(IPC.keybindingsOpen),
+  },
   onMenuCommand: (handler: (commandId: string) => void): (() => void) => {
     const listener = (_event: unknown, commandId: string): void => handler(commandId);
     ipcRenderer.on(IPC.menuCommand, listener);
@@ -49,6 +62,11 @@ const api: CoalApi = {
     const listener = (_event: unknown, snapshot: ConfigSnapshot): void => handler(snapshot);
     ipcRenderer.on(IPC.configChanged, listener);
     return () => ipcRenderer.removeListener(IPC.configChanged, listener);
+  },
+  onKeybindingsChanged: (handler: (snapshot: KeybindingsSnapshot) => void): (() => void) => {
+    const listener = (_event: unknown, snapshot: KeybindingsSnapshot): void => handler(snapshot);
+    ipcRenderer.on(IPC.keybindingsChanged, listener);
+    return () => ipcRenderer.removeListener(IPC.keybindingsChanged, listener);
   },
 };
 

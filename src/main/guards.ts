@@ -1,6 +1,11 @@
 // src/main/guards.ts
 import { KERNEL_SETTING_KEYS } from "../kernel/config/schema";
-import type { ConfigSetRequest, SaveRequest } from "../kernel/ipc/contract";
+import type {
+  ConfigSetRequest,
+  KeybindingBindRequest,
+  KeybindingUnbindRequest,
+  SaveRequest,
+} from "../kernel/ipc/contract";
 
 export function isSaveRequest(value: unknown): value is SaveRequest {
   return (
@@ -19,6 +24,23 @@ export function isConfigSetRequest(value: unknown): value is ConfigSetRequest {
   for (const key of Object.keys(patch)) {
     if (!(KERNEL_SETTING_KEYS as readonly string[]).includes(key)) return false;
   }
+  return true;
+}
+
+export function isKeybindingBindRequest(value: unknown): value is KeybindingBindRequest {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  if (typeof v["keys"] !== "string" || v["keys"].length === 0) return false;
+  if (typeof v["command"] !== "string" || v["command"].length === 0) return false;
+  if (v["when"] !== undefined && typeof v["when"] !== "string") return false;
+  return true;
+}
+
+export function isKeybindingUnbindRequest(value: unknown): value is KeybindingUnbindRequest {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  if (typeof v["keys"] !== "string" || v["keys"].length === 0) return false;
+  if (v["when"] !== undefined && typeof v["when"] !== "string") return false;
   return true;
 }
 

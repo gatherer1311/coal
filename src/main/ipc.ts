@@ -2,14 +2,26 @@
 import { dialog, ipcMain } from "electron";
 import type { BrowserWindow, IpcMainEvent, IpcMainInvokeEvent } from "electron";
 import { IPC } from "../kernel/ipc/contract";
-import type { ConfigSnapshot, OpenResult, SaveResult } from "../kernel/ipc/contract";
+import type {
+  ConfigSnapshot,
+  KeybindingsSnapshot,
+  OpenResult,
+  SaveResult,
+} from "../kernel/ipc/contract";
 import type { ConfigService } from "./configService";
+import type { KeybindingsService } from "./keybindingsService";
 import type { FileService } from "./fileService";
-import { isConfigSetRequest, isSaveRequest } from "./guards";
+import {
+  isConfigSetRequest,
+  isKeybindingBindRequest,
+  isKeybindingUnbindRequest,
+  isSaveRequest,
+} from "./guards";
 
 export interface IpcDeps {
   fileService: FileService;
   configService: ConfigService;
+  keybindingsService: KeybindingsService;
   getWindow(): BrowserWindow | null;
   isTrustedSender(event: IpcMainInvokeEvent | IpcMainEvent): boolean;
   onSetDirty(dirty: boolean): void;
@@ -66,6 +78,37 @@ export function registerIpc(deps: IpcDeps): void {
   ipcMain.handle(IPC.configOpen, async (event): Promise<OpenResult> => {
     if (!deps.isTrustedSender(event)) return { canceled: true };
     const result = await deps.fileService.openPath(deps.configService.path);
+    if (!result.canceled && !("binary" in result)) deps.onDocPresent();
+    return result;
+  });
+
+  const emptyKeybindings: KeybindingsSnapshot = { entries: [], diagnostics: [] };
+
+  ipcMain.handle(IPC.keybindingsLoad, async (event): Promise<KeybindingsSnapshot> => {
+    if (!deps.isTrustedSender(event)) return emptyKeybindings;
+    return deps.keybindingsService.load();
+  });
+
+  ipcMain.handle(IPC.keybindingsReload, async (event): Promise<KeybindingsSnapshot> => {
+    if (!deps.isTrustedSender(event)) return emptyKeybindings;
+    return deps.keybindingsService.reload();
+  });
+
+  ipcMain.handle(IPC.keybindingsBind, async (event, payload: unknown) => {
+    if (!deps.isTrustedSender(event)) return { ok: false, error: "untrusted sender" };
+    if (!isKeybindingBindRequest(payload)) return { ok: false, error: "invalid bind request" };
+    return deps.keybindingsService.bind(payload.keys, payload.command, payload.when);
+  });
+
+  ipcMain.handle(IPC.keybindingsUnbind, async (event, payload: unknown) => {
+    if (!deps.isTrustedSender(event)) return { ok: false, error: "untrusted sender" };
+    if (!isKeybindingUnbindRequest(payload)) return { ok: false, error: "invalid unbind request" };
+    return deps.keybindingsService.unbind(payload.keys, payload.when);
+  });
+
+  ipcMain.handle(IPC.keybindingsOpen, async (event): Promise<OpenResult> => {
+    if (!deps.isTrustedSender(event)) return { canceled: true };
+    const result = await deps.fileService.openPath(deps.keybindingsService.path);
     if (!result.canceled && !("binary" in result)) deps.onDocPresent();
     return result;
   });

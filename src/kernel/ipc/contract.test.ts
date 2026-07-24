@@ -23,6 +23,12 @@ describe("IPC contract (design §3 typed channels)", () => {
       configReload: "coal:config.reload",
       configChanged: "coal:config.changed",
       configOpen: "coal:config.open",
+      keybindingsLoad: "coal:keybindings.load",
+      keybindingsReload: "coal:keybindings.reload",
+      keybindingsBind: "coal:keybindings.bind",
+      keybindingsUnbind: "coal:keybindings.unbind",
+      keybindingsChanged: "coal:keybindings.changed",
+      keybindingsOpen: "coal:keybindings.open",
     });
   });
 });

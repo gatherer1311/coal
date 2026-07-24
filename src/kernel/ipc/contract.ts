@@ -2,6 +2,8 @@
 import type { DocMeta } from "../io/types";
 import type { ConfigSnapshot, KernelSettings } from "../config/types";
 export type { ConfigSnapshot, KernelSettings } from "../config/types";
+import type { KeybindingsSnapshot } from "../config/keybindings/types";
+export type { KeybindingsSnapshot, KeybindingEntry } from "../config/keybindings/types";
 
 /** IPC channel names. Every method on CoalApi wraps exactly one of these (design §3). */
 export const IPC = {
@@ -17,6 +19,12 @@ export const IPC = {
   configReload: "coal:config.reload",
   configChanged: "coal:config.changed",
   configOpen: "coal:config.open",
+  keybindingsLoad: "coal:keybindings.load",
+  keybindingsReload: "coal:keybindings.reload",
+  keybindingsBind: "coal:keybindings.bind",
+  keybindingsUnbind: "coal:keybindings.unbind",
+  keybindingsChanged: "coal:keybindings.changed",
+  keybindingsOpen: "coal:keybindings.open",
 } as const;
 
 export interface OpenDocResult {
@@ -44,6 +52,19 @@ export interface ConfigSetRequest {
 
 export type ConfigSetResult = { ok: true } | { ok: false; error: string };
 
+export interface KeybindingBindRequest {
+  readonly keys: string;
+  readonly command: string;
+  readonly when?: string;
+}
+
+export interface KeybindingUnbindRequest {
+  readonly keys: string;
+  readonly when?: string;
+}
+
+export type KeybindingWriteResult = { ok: true } | { ok: false; error: string };
+
 /** The typed surface the preload bridge exposes on window.coal. */
 export interface CoalApi {
   file: {
@@ -63,6 +84,14 @@ export interface CoalApi {
     /** Main opens settings.toml via fileService; the renderer never sees the path. */
     openInEditor(): Promise<OpenResult>;
   };
+  keybindings: {
+    load(): Promise<KeybindingsSnapshot>;
+    reload(): Promise<KeybindingsSnapshot>;
+    bind(req: KeybindingBindRequest): Promise<KeybindingWriteResult>;
+    unbind(req: KeybindingUnbindRequest): Promise<KeybindingWriteResult>;
+    /** Main opens keybindings.toml via fileService; the renderer never sees the path. */
+    openInEditor(): Promise<OpenResult>;
+  };
   onMenuCommand(handler: (commandId: string) => void): () => void;
   /** Files opened from the CLI / a second instance are pushed from main. */
   onDocOpened(handler: (doc: OpenDocResult) => void): () => void;
@@ -70,4 +99,6 @@ export interface CoalApi {
   onSaveAndQuit(handler: () => void): () => void;
   /** The kernel config changed (set / reload); main pushes the new snapshot. */
   onConfigChanged(handler: (snapshot: ConfigSnapshot) => void): () => void;
+  /** keybindings.toml changed (bind / unbind / reload); main pushes the new snapshot. */
+  onKeybindingsChanged(handler: (snapshot: KeybindingsSnapshot) => void): () => void;
 }
