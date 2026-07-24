@@ -1,0 +1,12 @@
+name: "Coal CodeQL config"
+
+# Design-reference assets are vendored, non-source artifacts and must not be
+# scanned. The pre-build visual-design mockups under the path below are
+# self-contained HTML with an embedded third-party rendering runtime
+# (React / Babel / the dc-runtime `support.js`); they are never built,
+# imported, or shipped by Coal. Their eval / Function-constructor / innerHTML
+# patterns belong to that mockup runtime, not to Coal's code, so CodeQL skips
+# the whole assets tree. Coal's actual source (`src/**`, `e2e/**`, scripts) is
+# unaffected and still fully scanned.
+paths-ignore:
+  - "docs/superpowers/specs/assets/**"
