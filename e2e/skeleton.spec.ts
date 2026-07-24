@@ -18,7 +18,7 @@ test("open -> edit -> save writes byte-exact changes -> quit", async () => {
 
     // Stub native dialogs only after the app is fully up — evaluating during the
     // startup navigation can hit a destroyed execution context. The stub is still
-    // in place before Ctrl+O triggers the open. Playwright can't drive GTK dialogs.
+    // in place before Ctrl-x Ctrl-f triggers the open. Playwright can't drive GTK dialogs.
     await app.evaluate(({ dialog }, filePath) => {
       dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filePath] });
       // Never block on the unsaved-changes modal if a race leaves the doc dirty at close.
@@ -27,11 +27,13 @@ test("open -> edit -> save writes byte-exact changes -> quit", async () => {
 
     await window.locator(".cm-content").click();
 
-    await window.keyboard.press("Control+O");
+    await window.keyboard.press("Control+X"); // Ctrl-x Ctrl-f = core.file.open (Emacs find-file)
+    await window.keyboard.press("Control+F");
     await expect(window.locator(".cm-content")).toContainText("hello");
 
     await window.keyboard.press("End");
     await window.keyboard.type(" world");
+    await window.keyboard.press("Control+X"); // Ctrl-x Ctrl-s = core.file.save (Emacs save-buffer)
     await window.keyboard.press("Control+S");
 
     await expect.poll(async () => readFile(fixture, "utf-8")).toBe("hello world\n");

@@ -22,7 +22,8 @@ test("the command palette runs Save, writing byte-exact changes", async () => {
     }, fixture);
 
     await window.locator(".cm-content").click();
-    await window.keyboard.press("Control+O");
+    await window.keyboard.press("Control+X"); // Ctrl-x Ctrl-f = core.file.open (Emacs find-file)
+    await window.keyboard.press("Control+F");
     await expect(window.locator(".cm-content")).toContainText("hello");
 
     // Edit, then save via the palette instead of Ctrl+S.
@@ -61,7 +62,8 @@ test("a native menu command is ignored while the palette is open", async () => {
     }, fixture);
 
     await window.locator(".cm-content").click();
-    await window.keyboard.press("Control+O");
+    await window.keyboard.press("Control+X"); // Ctrl-x Ctrl-f = core.file.open (Emacs find-file)
+    await window.keyboard.press("Control+F");
     await expect(window.locator(".cm-content")).toContainText("hello");
 
     // Open the palette on a CLEAN, unedited buffer, then simulate a native menu
